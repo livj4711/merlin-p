@@ -231,7 +231,7 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 			// }
 		}
 		aPotFunc->potZeroInit(); //L initialize mean vector and covariance matrix for this one gene (and its markov blanket but that's empty right now) to 0 
-		populatePotential(aPotFunc); //L init this potential with a mean and covariance value (covar = variance, since theres only one gene in this potential) based on the entire training data, and also the normalzing factor for the gaussian pdf
+		populatePotential(aPotFunc); //L init this potential with the actual mean and covariance value (covar = variance, since theres only one gene in this potential) based on the entire training data, and also the normalzing factor for the gaussian pdf
 		aPotFunc->calculateJointEntropy(); //L get the joint entropy for this potential based on the covariance
 		sFactor->jointEntropy=aPotFunc->getJointEntropy(); //L set this slimFactor's joint entropy
 		if(sFactor->jointEntropy<0)

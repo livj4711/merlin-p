@@ -85,7 +85,7 @@ class FactorManager
 		int initFactorSet();
 		int populateFactorSet();
 		int checkFactorIds();
-		int qsort(int*,int,int);
+		//L int qsort(int*,int,int); //L unused
 		Error::ErrorCode estimateClusterProperties();
 
 		int addToLattice(SlimFactor*,int**);

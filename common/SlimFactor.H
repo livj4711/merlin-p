@@ -27,7 +27,7 @@ class SlimFactor
 		int* vIds;
 		int vCnt;
 		//int secondPId;
-		double mutualInfo;
+		//L double mutualInfo;
 		double jointEntropy;
 		double marginalEntropy;
 		double mbScore;

@@ -6,7 +6,7 @@
 SlimFactor::SlimFactor()
 {
 	mbScore=-1;
-	mutualInfo=0;
+	//L mutualInfo=0; //L unused 
 	refCnt=0;
 }
 
@@ -15,7 +15,7 @@ SlimFactor::SlimFactor(int fSize)
 	vIds=new int[fSize];
 	vCnt=fSize;
 	//secondPId=-1;
-	mutualInfo=0;
+	//L mutualInfo=0; unused
 	jointEntropy=0;
 	//confidence=0;
 	fId=-1;

@@ -251,23 +251,25 @@ FactorManager::allocateFactorSpace_Graph()
 	return 0;
 }
 
-FactorGraph* 
+FactorGraph*
 FactorManager::createInitialFactorGraph()
 {
 	FactorGraph* fg=new FactorGraph;
-	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
+	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++) //L for each factor (singleton gene)
 	{
 		SlimFactor* factor=fIter->second;
-		if(factor->vCnt>1)
+		if(factor->vCnt>1) //L only create initial factor graph with singleton genes
 		{
 			break;
 		}
+
+		//L Copy all information from our original slimFactors into new slimFactors
 		SlimFactor* newFactor=new SlimFactor;
 		newFactor->vCnt=1;
 		newFactor->vIds=new int[1];
 		newFactor->vIds[0]=factor->vIds[0];
 		newFactor->fId=factor->fId;
-		newFactor->mutualInfo=factor->mutualInfo;
+		//L newFactor->mutualInfo=factor->mutualInfo; //L 0 sinc there is 0 mutual information between a gene and itself 
 		newFactor->jointEntropy=factor->jointEntropy;
 		newFactor->marginalEntropy=factor->jointEntropy;
 		newFactor->mbScore=factor->mbScore;
@@ -296,7 +298,7 @@ FactorManager::generateSingletonFactors()
 		sFactor->vIds[0]=vIter->first;
 		sFactor->vCnt=1;
 		//sFactor->secondPId=-1;
-		sFactor->mutualInfo=0;
+		//L sFactor->mutualInfo=0; //L unused
 		sFactor->jointEntropy=0;
 		sFactor->fId=globalFactorID;
 		string key;
@@ -480,7 +482,7 @@ FactorManager::estimateCanonicalParameters(const char* estMethod)
 int 
 FactorManager::learnStructure()
 {
-	Error::ErrorCode err=estimateClusterProperties(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the training data mean and covar (variance) and set the markov bnkt score to be the joint entorpy too
+	Error::ErrorCode err=estimateClusterProperties(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the training data's actual mean and covar (variance) and set the markov bnkt score to be the joint entorpy too
 	if(err!=Error::SUCCESS)
 	{
 		cout <<Error::getErrorString(err) << endl;
@@ -1948,7 +1950,7 @@ FactorManager::initFactorSet()
 		slimFactorSet[i]=sFactor;
 		sFactor->vIds=new int[1]; //L array of size 1, but it has no value set
 		sFactor->vCnt=1;
-		sFactor->mutualInfo=0;
+		//L sFactor->mutualInfo=0; //L unused
 		sFactor->jointEntropy=0;
 		sFactor->fId=globalFactorID;
 		globalFactorID++;
@@ -2000,7 +2002,7 @@ FactorManager::estimateClusterProperties()
 	struct timeval endtime;
 	gettimeofday(&begintime,NULL); 
 	
-	Error::ErrorCode err=potMgr->populatePotentialsSlimFactors(slimFactorSet,vMgr->getVariableSet()); //L populate each SlimFactor with its joint entropy (based on this slimfactor's variable's (just one gene) covariance (variance, since just one gene) from entire TRAINING DATA
+	Error::ErrorCode err=potMgr->populatePotentialsSlimFactors(slimFactorSet,vMgr->getVariableSet()); //L populate each SlimFactor with its joint entropy (based on this slimfactor's variable's (just one gene) actual covariance (variance, since just one gene) from entire TRAINING DATA)
 
 	gettimeofday(&endtime,NULL);
 	cout << "Time elapsed to populate SlimFactors with joint entropy: " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
@@ -2077,29 +2079,30 @@ FactorManager::getOverlap(SlimFactor* clusterA,SlimFactor* clusterB,int& totalVa
 //Sort all factors in factorIndSet. These are all the factors of a particular
 //size that satisfy some criteria
 //This must be done in decreasing order of mutual information
-int
-FactorManager::qsort(int* factorIndSet,int startind, int endind)
-{
-	if(endind-startind <=1)
-	{
-		return 0;
-	}
-	//pivot is the first element
-	int pivot=startind;
-	for(int i=startind+1;i<endind;i++)
-	{
-		//If the element at i is less than element at pivot
-		//place element before pivot
-		if(slimFactorSet[factorIndSet[i]]->mutualInfo < slimFactorSet[factorIndSet[pivot]]->mutualInfo)
-		{
-			int temp=factorIndSet[i];
-			factorIndSet[i]=factorIndSet[pivot];
-			factorIndSet[pivot]=temp;
-			pivot++;
-		}
-	}
-	//Now make sure everything after the pivot is greater or equal to the pivot
-	qsort(factorIndSet,startind,pivot-1);
-	qsort(factorIndSet,pivot+1,endind);
-	return 0;
-}
+//L I comment this out, since mutualInfo is unused completely
+// int
+// FactorManager::qsort(int* factorIndSet,int startind, int endind)
+// {
+// 	if(endind-startind <=1)
+// 	{
+// 		return 0;
+// 	}
+// 	//pivot is the first element
+// 	int pivot=startind;
+// 	for(int i=startind+1;i<endind;i++)
+// 	{
+// 		//If the element at i is less than element at pivot
+// 		//place element before pivot
+// 		if(slimFactorSet[factorIndSet[i]]->mutualInfo < slimFactorSet[factorIndSet[pivot]]->mutualInfo)
+// 		{
+// 			int temp=factorIndSet[i];
+// 			factorIndSet[i]=factorIndSet[pivot];
+// 			factorIndSet[pivot]=temp;
+// 			pivot++;
+// 		}
+// 	}
+// 	//Now make sure everything after the pivot is greater or equal to the pivot
+// 	qsort(factorIndSet,startind,pivot-1);
+// 	qsort(factorIndSet,pivot+1,endind);
+// 	return 0;
+// }

@@ -454,7 +454,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 	//L there is now only one evidenceManager for this metaLearner:
 	evidenceManager->setVariableManager(varManager);
 	evidenceManager->setFoldCnt(foldCnt);
-	evidenceManager->splitData(0);
+	evidenceManager->splitData(0); //L I think this splitData is redundant...
 
 	potManager = new PotentialManager;
 	potManager->setEvidenceManager(evidenceManager);
@@ -475,12 +475,12 @@ MetaLearner::doCrossValidation(int foldCnt)
 		evidenceManager->splitData(f);
 		if(random)
 		{	
-			evidenceManager->randomizeEvidence(r);
+			evidenceManager->randomizeEvidence(r); //L permutation test: shuffles genes in all training cells but NOT in test or validation cells to assess statistical significance
 		}
 
 		potManager->reset();
 		potManager->setRandom(random);
-		potManager->init();
+		potManager->init(); //L initialize the expr matrix and the mean "vector" (mean of gene expression) but set cov matrix to all -1!
 
 		FactorManager* factorManager=new FactorManager;
 		factorManager->setPotentialManager(potManager);
@@ -491,24 +491,28 @@ MetaLearner::doCrossValidation(int foldCnt)
 		//L factorManager->setPenalty(penalty);
 		if(strlen(restrictedFName)>0)
 		{
-			factorManager->readRestrictedVarlist(restrictedFName);
+			factorManager->readRestrictedVarlist(restrictedFName); //L THIS IS WHERE restrictedNeighborList GETS SET
 		}
-		factorManager->allocateFactorSpace();
-		factorManager->learnStructure();
+		factorManager->allocateFactorSpace(); //L allocate space for one slimFactor per gene
+		factorManager->learnStructure(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the mean and covar (variance) (from training data) for each slimFactor's gene and set the markov bnkt score to be the joint entropy too
 
-		factorGraph = factorManager->createInitialFactorGraph();
+		factorGraph = factorManager->createInitialFactorGraph(); //L combine all slimfactors (singleton genes; no edges) into on factor graph
 
 		delete factorManager;
 
+		//L Prepare output directory for this fold
 		char outputDir[1024];
 		sprintf(outputDir,"%s/fold%d",outputDirName,f);
 		char foldOutputDirCmd[1024];
-		sprintf(foldOutputDirCmd,"mkdir %s",outputDir);
+		sprintf(foldOutputDirCmd,"mkdir -p %s",outputDir);
 		system(foldOutputDirCmd);
 
+		//L Begin identifying regulators/inferring modules for this fold
 		start(f);
+
+		//L Get the prediction error on the test set for this fold
 		getPredictionError_CrossValid(f);
-		clearFoldSpecData();
+		clearFoldSpecData(); //L clear fold-specific structures before the next fold
 	}
 	gsl_rng_free(r);
 
@@ -544,97 +548,109 @@ MetaLearner::start(int f)
 		double currGlobalScore=getInitPLLScore();
 		double initScore=getInitPrior();
 		//currGlobalScore=currGlobalScore+initScore;
-		int showid=0;
-		int moduleiter=0;
-		bool notConvergedTop=true;
+		//L int showid=0; //L unused
+		//L int moduleiter=0;
+		//L bool notConvergedTop=true;
 		vector<int> randOrder;
-		while(moduleiter<1 && notConvergedTop)
+		//L while(moduleiter<1 && notConvergedTop) //L I remove this, since its restricted to only running once anyway. in other versions of start(), this used to have function.
+		//L {
+		int iter=0;
+		bool notConverged=true;
+		
+		while(notConverged && iter<50)
 		{
-			int iter=0;
-			bool notConverged=true;
-			while(notConverged && iter<50)
+			cout << "\nBeginning iteration=" << (iter + 1) << " (cross-validation fold=" << f << ")." << endl; //L
+			int attemptedMoves=0;
+			int subiter=0;
+			double scorePremodule=currGlobalScore;
+			randOrder.clear();
+			//L evidenceManager->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size()); //L don't need to populate random order of genes now				
+			struct timeval begintime;
+			struct timeval endtime;
+			struct timezone begintimezone;
+			struct timezone endtimezone;
+			gettimeofday(&begintime,&begintimezone);
+			cout << "Starting regulator identification." << endl; //L
+
+			while(subiter<varSet.size())
+			//while(notConverged && subiter<6000)
 			{
-				int attemptedMoves=0;
-				int subiter=0;
-				double scorePremodule=currGlobalScore;
-				randOrder.clear();
-				evidenceManager->populateRandIntegers(rnd,randOrder,varSet.size(),varSet.size());				
-				struct timeval begintime;
-				struct timeval endtime;
-				struct timezone begintimezone;
-				struct timezone endtimezone;
-				gettimeofday(&begintime,&begintimezone);
-				while(subiter<varSet.size())
-				//while(notConverged && subiter<6000)
+				//L int rID=randOrder[subiter]; //L get rid of the random order
+				//L if(idVidMap.find(rID)==idVidMap.end())
+				//L {
+				//L 	cout <<"Variable at  " << rID << " simply not found " << endl;
+				//L 	exit(0);
+				//L }
+				//int vID=idVidMap[rID];
+				int vID=idVidMap[subiter];
+				VSET_ITER vIter=varSet.find(vID);
+				if(vIter==varSet.end())
 				{
-					int rID=randOrder[subiter];
-					if(idVidMap.find(rID)==idVidMap.end())
-					{
-						cout <<"Variable at  " << rID << " just not found " << endl;
-						exit(0);
-					}
-					//int vID=idVidMap[rID];
-					int vID=idVidMap[subiter];
-					VSET_ITER vIter=varSet.find(vID);
-					if(vIter==varSet.end())
-					{
-						subiter++;
-						continue;
-					}
-					Variable* v=varSet[vID];
-					int lastiter=0;
-					if(variableStatus.find(v->getName())!=variableStatus.end())
-					{
-						lastiter=variableStatus[v->getName()];
-						if((iter-lastiter)>=5)
-						{
-							cout <<"Skipping " << v->getName() << endl;
-							subiter++;
-							continue;	
-						}
-					}		
-					struct timeval begintime_v;
-					struct timeval endtime_v;
-					struct timezone begintimezone_v;
-					struct timezone endtimezone_v;
-					collectMoves(currK,vID);
-					if(moveSet.size()==0)
-					{
-						subiter++;
-						continue;
-					}
-					sortMoves();
-					makeMoves();
-					double newScore=getPLLScore();
-					double diff=newScore-currGlobalScore;
-					if(diff<=convThreshold)
-					{
-					//	notConverged=false;
-					}
-					//dumpAllGraphs(currK,f,iter);
-					currGlobalScore=newScore;
-					//cout <<"Current iter " << iter << " Score after beta-theta " << newScore << endl;
 					subiter++;
-					showid++;
-					attemptedMoves++;
-					gettimeofday(&endtime_v,&endtimezone_v);
-					//printf("Time elapsed for one var %uj secs %d microsec\n",(unsigned int)(endtime_v.tv_sec-begintime_v.tv_sec),(unsigned int)(endtime_v.tv_usec-begintime_v.tv_usec));
+					continue;
 				}
-				gettimeofday(&endtime,&endtimezone);
-				//printf("Time elapsed for all vars %d mins %d secs %d microsec\n", (unsigned int)(endtimezone.tz_minuteswest-begintimezone.tz_minuteswest), (unsigned int)(endtime.tv_sec-begintime.tv_sec,endtime.tv_usec-begintime.tv_usec));
-				if((currGlobalScore-scorePremodule)<=convThreshold)
+				Variable* v=varSet[vID];
+				int lastiter=0;
+				if(variableStatus.find(v->getName())!=variableStatus.end()) 
 				{
-					notConverged=false;
-				}
-				else
+					lastiter=variableStatus[v->getName()];
+					if((iter-lastiter)>=5) //L if 
+					{
+						cout <<"Gene " << v->getName() << " hasn't been updated in the last 5 iterations. Skipping." << endl;
+						subiter++;
+						continue;	
+					}
+				}		
+				//L struct timeval begintime_v;
+				//L struct timeval endtime_v;
+				//L struct timezone begintimezone_v;
+				//L struct timezone endtimezone_v;
+				collectMoves(currK,vID);
+				if(moveSet.size()==0)
 				{
-					redefineModules();
+					subiter++;
+					continue;
 				}
-				iter++;
-				scorePremodule=currGlobalScore;
-				dumpAllGraphs(currK,f,iter);
+				sortMoves();
+				makeMoves();
+				double newScore=getPLLScore();
+				double diff=newScore-currGlobalScore;
+				if(diff<=convThreshold)
+				{
+				//	notConverged=false;
+				}
+				//dumpAllGraphs(currK,f,iter);
+				currGlobalScore=newScore;
+				//cout <<"Current iter " << iter << " Score after beta-theta " << newScore << endl;
+				subiter++;
+				//L showid++; //L unused
+				attemptedMoves++;
+				//L gettimeofday(&endtime_v,&endtimezone_v); //L unused
+				//printf("Time elapsed for one var %uj secs %d microsec\n",(unsigned int)(endtime_v.tv_sec-begintime_v.tv_sec),(unsigned int)(endtime_v.tv_usec-begintime_v.tv_usec));
 			}
-			moduleiter++;
+			gettimeofday(&endtime,&endtimezone);
+			cout << "Time elapsed for regulator identification of all genes: "
+				<< (unsigned int)(endtimezone.tz_minuteswest - begintimezone.tz_minuteswest) << " mins "
+				<< (unsigned int)(endtime.tv_sec - begintime.tv_sec) << " secs "
+				<< (unsigned int)(endtime.tv_usec - begintime.tv_usec) << " microsec" << endl;
+			cout << "Number of edges attempted to add: " << attemptedMoves << endl;
+			cout << "delta=" << (currGlobalScore - scorePremodule) << ", threshold=" << convThreshold << "." << endl;//L
+
+	 		if((currGlobalScore-scorePremodule)<=convThreshold)
+			{
+				cout << "Graph converged." << endl; //L
+				notConverged=false;
+			}
+			else
+			{
+				cout << "Graph not converged; starting module inference." << endl; //L
+				redefineModules();
+			}
+			iter++;
+			//L scorePremodule=currGlobalScore; //L redundant
+			dumpAllGraphs(currK,f,iter);
+			//L }
+			//L moduleiter++;
 		}
 		cout <<"Final Score " << currGlobalScore << endl;
 		finalScores[f]=currGlobalScore;

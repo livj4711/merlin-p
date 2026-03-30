@@ -29,7 +29,6 @@ class EvidenceManager
 		int setVariableManager(VariableManager*);
 		//Read the evidence file
 		Error::ErrorCode loadEvidenceFromFile(const char*);
-		Error::ErrorCode loadEvidenceFromFile_Continuous(const char*);
 		int randomizeEvidence(gsl_rng*);
 		int getNumberOfEvidences();
 		//Get the evidence set at the specified id

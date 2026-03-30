@@ -80,7 +80,7 @@ PotentialManager::setRandom(bool flag)
 int
 PotentialManager::init()
 {
-	initData();
+	initData(); //L initialize the expression matrix and the mean "vector" (mean of gene expression) but set cov matrix to all -1!
 	ludecomp=gsl_matrix_alloc(MAXFACTORSIZE_ALLOC,MAXFACTORSIZE_ALLOC);
 	perm=gsl_permutation_alloc(MAXFACTORSIZE_ALLOC);
 	return 0;
@@ -121,17 +121,17 @@ int
 PotentialManager::initData()
 {
 	INTINTMAP& trainEvidSet=evMgr->getTrainingSet();
-	EMAP* evidMap=evMgr->getEvidenceAt(trainEvidSet.begin()->first);
-	int varCnt=evidMap->size();
+	EMAP* evidMap=evMgr->getEvidenceAt(trainEvidSet.begin()->first); //L get the map of cells for the first training sample, just to get the number of genes
+	int varCnt=evidMap->size(); //L number of genes in the data
 
-	// data is the data matrix which will have the variable by sample information
-	if(data==NULL)
+	// data is the data matrix which will have the variable (gene) by sample (cell) information
+	if(data==NULL) //L if the data matrix has not been initialized yet, initialize it with the number of genes and number of training samples
 	{
-		data=new Matrix(varCnt,trainEvidSet.size());
-		meanMat=new Matrix(varCnt,1);
-		meanMat->setAllValues(0);
-		covMat=new Matrix(varCnt,varCnt);
-		covMat->setAllValues(-1);
+		data=new Matrix(varCnt,trainEvidSet.size()); //L num_genes x num_training_cells matrix
+		meanMat=new Matrix(varCnt,1); //L num_genes x 1 matrix of mean gene expression
+		meanMat->setAllValues(0); //L initialize the mean matrix to all 0ss
+		covMat=new Matrix(varCnt,varCnt); //L num_genes x num_genes covariance matrix
+		covMat->setAllValues(-1); //L initialize the covariance matrix to all -1s
 	}
 
 	// Copy all the samples into the data matrix
@@ -145,9 +145,9 @@ PotentialManager::initData()
 		}
 		else
 		{
-			evidMap=evMgr->getEvidenceAt(eIter->first);
+			evidMap=evMgr->getEvidenceAt(eIter->first); //L get this cell's gene expression map from this PotentialManager's evMgr
 		}
-		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++)
+		for(EMAP_ITER vIter=evidMap->begin();vIter!=evidMap->end(); vIter++) //L for each gene in this cell
 		{
 			int vId=vIter->first;
 			Evidence* evid=vIter->second;
@@ -158,15 +158,15 @@ PotentialManager::initData()
 	}
 
 	// Done copying. Now we can go over the rows of data and get the means
-	for(int i=0;i<varCnt;i++)
+	for(int i=0;i<varCnt;i++) //L for each gene (row) in the data matrix
 	{
 		double sampleSum=0;
-		for(int j=0;j<data->getColCnt();j++)
+		for(int j=0;j<data->getColCnt();j++) //L for each cell (column) in the data matrix
 		{
-			sampleSum += data->getValue(i,j);
+			sampleSum += data->getValue(i,j); //L sum up the expression values for this gene across all the training cells
 		}
-		double sampleSize=(double) data->getColCnt();
-		meanMat->setValue(sampleSum/sampleSize,i,0);
+		double sampleSize=(double) data->getColCnt(); //L number of training cells
+		meanMat->setValue(sampleSum/sampleSize,i,0); //L set the mean expression for this gene in the meanMat
 	}
 
 	return 0;
@@ -175,7 +175,7 @@ PotentialManager::initData()
 int
 PotentialManager::estimateCovariance(int uId, int vId)
 {
-	double ssd=0;
+	double ssd=0; //L sum of squared differences, this is what we will use to calculate the covariance for this pair of genes
 	for(int i=0;i<data->getColCnt();i++)
 	{
 		double vval=data->getValue(vId,i);
@@ -186,7 +186,7 @@ PotentialManager::estimateCovariance(int uId, int vId)
 	}
 	if(uId==vId)
 	{
-		ssd += 0.001;
+		ssd += 0.001; //L add a small value to avoid division by zero
 	}
 	double var = ssd/((double)(data->getColCnt()-1));
 	covMat->setValue(var,uId,vId);
@@ -199,12 +199,12 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 {
 	//The set of flags to keep status of the potentials that have been calculated
 	map<int,bool> doneFlag;
-	for(map<int,SlimFactor*>::iterator fIter=factorSet.begin();fIter!=factorSet.end();fIter++)
+	for(map<int,SlimFactor*>::iterator fIter=factorSet.begin();fIter!=factorSet.end();fIter++) //L for each factor in the factorSet. factorSet contains all the SlimFactors (one per gene)
 	{
-		doneFlag[fIter->first]=false;
+		doneFlag[fIter->first]=false; //L initialize doneFlag to false
 	}
 	int popFId=0;
-	for(map<int,SlimFactor*>::reverse_iterator rIter=factorSet.rbegin();rIter!=factorSet.rend();rIter++)
+	for(map<int,SlimFactor*>::reverse_iterator rIter=factorSet.rbegin();rIter!=factorSet.rend();rIter++) //L Iterates over all slim factors in reverse key order
 	{
 		//If we have computed the potential for this flag move one
 		if(doneFlag[rIter->first])
@@ -213,28 +213,27 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 			continue;
 		}
 		SlimFactor* sFactor=rIter->second;
-		if(sFactor->fId==176)
-		{
-			cout <<"Stop here " << endl;
-		}
+
 		//Otherwise create the potential
-		Potential* aPotFunc=new Potential;
-		for(int j=0;j<sFactor->vCnt;j++)
+		Potential* aPotFunc=new Potential; //L a potential FOR EACH SLIMFACTOR (GENE)
+		for(int j=0;j<sFactor->vCnt;j++) //L for each gene in this SlimFactor (should just be one)
 		{
-			Variable* aVar=varSet[sFactor->vIds[j]];
-			if(j==sFactor->vCnt-1)
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
-			}
-			else
-			{
-				aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
-			}
+			Variable* aVar=varSet[sFactor->vIds[j]]; //L set aVar to be the gene ID of this gene (variable)
+
+			aPotFunc->setAssocVariable(aVar,Potential::FACTOR); //L there is only one gene in this factor, so we set the association type to FACTOR (rather than MAKOV_BNKT)
+			// if(j==sFactor->vCnt-1) 
+			// {
+			// 	aPotFunc->setAssocVariable(aVar,Potential::FACTOR);
+			// }
+			// else
+			// {
+			// 	aPotFunc->setAssocVariable(aVar,Potential::MARKOV_BNKT);
+			// }
 		}
-		aPotFunc->potZeroInit();
-		populatePotential(aPotFunc);
-		aPotFunc->calculateJointEntropy();
-		sFactor->jointEntropy=aPotFunc->getJointEntropy();
+		aPotFunc->potZeroInit(); //L initialize mean vector and covariance matrix for this one gene (and its markov blanket but that's empty right now) to 0 
+		populatePotential(aPotFunc); //L init this potential with a mean and covariance value (covar = variance, since theres only one gene in this potential) based on the entire training data, and also the normalzing factor for the gaussian pdf
+		aPotFunc->calculateJointEntropy(); //L get the joint entropy for this potential based on the covariance
+		sFactor->jointEntropy=aPotFunc->getJointEntropy(); //L set this slimFactor's joint entropy
 		if(sFactor->jointEntropy<0)
 		{
 		//	sFactor->jointEntropy=0;
@@ -242,11 +241,11 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 		}
 		doneFlag[rIter->first]=true;
 		delete aPotFunc;
-		if(popFId%100000==0)
+		popFId++;
+		if(popFId%100000==0) //L print progress for every 100k factors (genes)
 		{
 			cout <<"Done with " << factorSet.size()-popFId << " factors " << endl;
 		}
-		popFId++;
 	}
 	return Error::SUCCESS;
 }
@@ -254,22 +253,22 @@ PotentialManager::populatePotentialsSlimFactors(map<int,SlimFactor*>& factorSet,
 int
 PotentialManager::populatePotential(Potential* aPot)
 {
-	VSET& potVars=aPot->getAssocVariables();
-	for(VSET_ITER vIter=potVars.begin();vIter!=potVars.end(); vIter++)
+	VSET& potVars=aPot->getAssocVariables(); //L the gene and all its regulators (of the markov blanket)
+	for(VSET_ITER vIter=potVars.begin();vIter!=potVars.end(); vIter++) //L for each gene or reg v in this potential
 	{
-		double mean=meanMat->getValue(vIter->first,0);
-		aPot->updateMean(vIter->first,mean);
+		double mean=meanMat->getValue(vIter->first,0); 
+		aPot->updateMean(vIter->first,mean); //L set the mean value for this gene to its mean of the entire training data
 
-		for(VSET_ITER uIter=vIter;uIter!=potVars.end();uIter++)
+		for(VSET_ITER uIter=vIter;uIter!=potVars.end();uIter++) //L for each other gene or reg u in this porential
 		{
-			double cval=covMat->getValue(vIter->first,uIter->first);
-			if(cval==-1)
+			double cval=covMat->getValue(vIter->first,uIter->first); //L get the covar for this pair from the entire training data
+			if(cval==-1) //L not initialized yet
 			{
-				estimateCovariance(uIter->first,vIter->first);
-				cval=covMat->getValue(vIter->first,uIter->first);
+				estimateCovariance(uIter->first,vIter->first); //L estimate the covariance for this pair based on the entire training data and set it in the covMat
+				cval=covMat->getValue(vIter->first,uIter->first); //L extract that covariance
 			}
-			aPot->updateCovariance(vIter->first,uIter->first,cval);
-			aPot->updateCovariance(uIter->first,vIter->first,cval);
+			aPot->updateCovariance(vIter->first,uIter->first,cval); //L update that pairs overall covariance into this potential
+			aPot->updateCovariance(uIter->first,vIter->first,cval); //L the symmetric value too
 		}
 	}
 	aPot->makeValidJPD(ludecomp,perm);

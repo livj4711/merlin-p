@@ -67,9 +67,9 @@ Potential::initMatrix(int k)
 int 
 Potential::setAssocVariable(Variable* var,Potential::VariableRole vRole)
 {
-	varSet[var->getID()]=var;
-	vIDMatIndMap[var->getID()]=matrixInd;
-	matIndvIDMap[matrixInd]=var->getID();
+	varSet[var->getID()]=var; //L add the variable to the varSet of this potential
+	vIDMatIndMap[var->getID()]=matrixInd; //L assign the current matrixInd to this variable ID in the vIDMatIndMap of this potential. This map is used to keep track of which variable corresponds to which row/column in the covariance and mean matrices
+	matIndvIDMap[matrixInd]=var->getID(); //L assign the variable ID to the current matrixInd in the matIndvIDMap of this potential: look up variable IDs when we have a row/column index from the covariance or mean matrix
 	matrixInd++;
 	switch(vRole)
 	{
@@ -146,9 +146,9 @@ Potential::getSharedMBVars()
 int
 Potential::potZeroInit()
 {
-	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
+	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++) //L init mean = 0 for gene and all it regulators (of markov blanket) 
 	{
-		meanWrap[vIter->first]=0;
+		meanWrap[vIter->first]=0; 
 	}
 	int row=varSet.size();
 	covariance=new Matrix(row,row);
@@ -301,21 +301,21 @@ Potential::makeValidJPD()
 
 
 int
-Potential::makeValidJPD(gsl_matrix* ludecomp, gsl_permutation* p)
+Potential::makeValidJPD(gsl_matrix* ludecomp, gsl_permutation* p) //L make a valid joint multivariate Gaussian distribution of this potential
 {
 	if(inverse!=NULL)
 	{
 		delete inverse;
 	}
-	inverse=covariance->invMatrix(ludecomp,p);
-	determinant=covariance->detMatrix(ludecomp,p);
+	inverse=covariance->invMatrix(ludecomp,p); //L need the inverse of the covar matrix. used in the pdf evaluation
+	determinant=covariance->detMatrix(ludecomp,p); //L need the determinant of the covar matrix
 	if(determinant <0)
 	{
 	//	cout <<"Negative Determinant " << determinant << endl;
 	}
-	double n=((double)varSet.size())/2.0;
-	normFactor=pow(2*PI,n)*determinant;
-	normFactor=sqrt(normFactor);
+	double n=((double)varSet.size())/2.0; 
+	normFactor=pow(2*PI,n)*determinant; 
+	normFactor=sqrt(normFactor); //L normalization factor for a multivariate gaussian. this is used in pdf evaluation
 	return 0;
 }
 
@@ -366,9 +366,9 @@ Potential::calculateEntropy()
 int
 Potential::calculateJointEntropy()
 {
-	double commFact=1+log(2*PI);
+	double commFact=1+log(2*PI); //L common factor in the entropy formula for a multivariate Gaussian distribution: H(X) = 0.5 * (n * (1 + log(2*pi)) + log(det(covariance)))
 	double n=((double)varSet.size());
-	jointEntropy=0.5*((n*commFact) + log(determinant));
+	jointEntropy=0.5*((n*commFact) + log(determinant)); //L entropy of a multivariate Gaussian distribution
 	return 0;
 }
 

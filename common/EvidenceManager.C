@@ -27,49 +27,9 @@ EvidenceManager::setVariableManager(VariableManager* aPtr)
 	return 0;
 }
 
-Error::ErrorCode
-EvidenceManager::loadEvidenceFromFile(const char* inFName)
-{
-	ifstream inFile(inFName);
-	char buffer[80000];
-	while(inFile.good())
-	{
-		inFile.getline(buffer,80000);
-		if(strlen(buffer)<=0)
-		{
-			continue;
-		}
-		else if(strchr(buffer,'#')!=NULL)
-		{
-			continue;
-		}
-		//All the evidences for each variable are stored in a map, indexed by the varId
-		EMAP* evidMap=new EMAP;
-		char* tok=strtok(buffer,"\t");
-		//The toks take the form of varid and value
-		while(tok!=NULL)
-		{
-			Evidence* evid;
-			if(populateEvidence(&evid,tok)==-1)
-			{
-				cout <<"Error while populating evidence " << endl;
-				return Error::DATAFILE_ERR;
-			}
-			(*evidMap)[evid->getAssocVariable()]=evid;
-			tok=strtok(NULL,"\t");
-		}
-		//if(evidenceSet.size()<=20)
-		//{
-			evidenceSet.push_back(evidMap);
-		//}
-	}
-	inFile.close();
-	cout <<"Read " << evidenceSet.size() << " different datapoints " << endl;
-	return Error::SUCCESS;
-}
 
 Error::ErrorCode
-EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
+EvidenceManager::loadEvidenceFromFile(const char* inFName)
 {
 	ifstream inFile(inFName);
 	char* buffer=NULL;
@@ -77,13 +37,13 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 	int bufflen=0;
 	int lineNo=0;
 
-	// skip the first line.
+	// skip the first line (gene headers)
 	if(inFile.good())
 	{
 		getline(inFile,buffstr);
 	}
 
-	while(inFile.good())
+	while(inFile.good()) //L for each line (cell) in the data file
 	{
 		getline(inFile,buffstr);
 
@@ -104,11 +64,11 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 
 		//All the evidences for each variable are stored in a map, indexed by the varId
 		EMAP* evidMap=new EMAP;
-		char* tok=strtok(buffer,"\t");
+		char* tok=strtok(buffer,"\t"); //L all the gene expression values for this cell, as strings
 		//The toks take the form of varid and value
 
 		int vId = 0;
-		while(tok!=NULL)
+		while(tok!=NULL) //L for each gene expression value in the line (cell)
 		{
 			Evidence* evid = new Evidence;
 			evid->assocVariable(vId);
@@ -117,7 +77,7 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 			if(isinf(varVal) || isnan(varVal))
 			{
 				//cout <<"Found nan! " << tok << endl;
-				cerr << "Please remove zero's (" << tok << ") from the expression data. " << endl;
+				cerr << "Please remove NaNs from the expression data or check the data format, this is not a valid number (" << tok << ") " << endl; //L say NaN instead of zero
 				exit(-1);	
 			}
 			evid->setEvidVal(varVal);
@@ -125,13 +85,13 @@ EvidenceManager::loadEvidenceFromFile_Continuous(const char* inFName)
 			tok=strtok(NULL,"\t");
 			vId++;
 		}
-		evidenceSet.push_back(evidMap);
+		evidenceSet.push_back(evidMap); //L add the evidence map for this cell to the evidenceSet vector, which holds the evidence maps for all the cells
 		lineNo++;
 	}
 
 	inFile.close();
 
-	cout <<"Read " << evidenceSet.size() << " different datapoints " << endl;
+	cout <<"Read " << evidenceSet.size() << " different cells " << endl; //L say cells instead of datapoints
 
 	return Error::SUCCESS;
 }
@@ -358,16 +318,16 @@ EvidenceManager::setPreRandomizeSplit()
 }
 
 int 
-EvidenceManager::splitData(int s)
+EvidenceManager::splitData(int s) //L split data for k-fold cross-validation
 {
-	int testSetSize=(evidenceSet.size()-validationIndex.size())/foldCnt;
+	int testSetSize=(evidenceSet.size()-validationIndex.size())/foldCnt; //L evidenceSet.size()=number of cells. validationIndex NEVER GETS CALLED, so its size is 0
 	int testStartIndex=s*testSetSize;
 	int testEndIndex=(s+1)*testSetSize;
-	if(s==foldCnt-1)
+	if(s==foldCnt-1) //L if this is the last fold
 	{
-		testEndIndex=evidenceSet.size()-validationIndex.size();
+		testEndIndex=evidenceSet.size()-validationIndex.size(); //L set the last index to the leftover cells
 	}
-	if(foldCnt==1)
+	if(foldCnt==1) //L if we aren't doing cross-fold validation on the data
 	{
 		testStartIndex=-1;
 		testEndIndex=-1;
@@ -376,14 +336,14 @@ EvidenceManager::splitData(int s)
 	testIndex.clear();
 	int m=0;
 	int* randInds=NULL;
-	if(preRandomizeSplit)
-	{
+	if(preRandomizeSplit) //L preRandomizeSplit is always false
+	{ //L generates random permutation of the dataset indices so that later data partitioning happens in random order instead of sequential order.
 		randInds=new int[evidenceSet.size()];
 		//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
 		gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 		randseed=getpid();
 		gsl_rng_set(r,randseed);
-		populateRandIntegers(r,randInds,evidenceSet.size());	
+		populateRandIntegers(r,randInds,evidenceSet.size()); //L fills the array with a random permutation of integers
 		gsl_rng_free(r);
 		cout <<"Random seed " << randseed << endl;
 	}
@@ -394,19 +354,19 @@ EvidenceManager::splitData(int s)
 		{
 			eInd=randInds[i];
 		}
-		if(validationIndex.find(eInd)!=validationIndex.end())
+		if(validationIndex.find(eInd)!=validationIndex.end()) //L if this cell exists in validationIndex, skip it. but validationIndex is always empty
 		{
 			continue;
 		}
-		if((m>=testStartIndex) && (m<testEndIndex))
+		if((m>=testStartIndex) && (m<testEndIndex)) //L if it's a 'test' cell, add the index to the testIndex
 		{
 			testIndex[eInd]=0;
 		}
-		else
+		else //L if it's not a 'test' cell, add the index to the trainIndex
 		{
 			trainIndex[eInd]=0;
 		}
-		m++;
+		m++; //L m increments with the cell
 	}
 	if(preRandomizeSplit)
 	{
@@ -467,6 +427,8 @@ EvidenceManager::standardizeData()
 	}
 	return 0;
 }
+
+//J remove partitionData()
 
 int 
 EvidenceManager::populateEvidence(Evidence** evid,const char* evidStr)

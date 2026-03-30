@@ -26,7 +26,7 @@ FactorManager::FactorManager()
 {
 	globalFactorID=0;
 	maxFactorSize_Approx=-1;
-	mbPenalty=0;
+	//L mbPenalty=0;
 }
 
 FactorManager::~FactorManager()
@@ -228,18 +228,18 @@ FactorManager::setBeamSize(int aSize)
 	return 0;
 }
 
-int
-FactorManager::setPenalty(double p)
-{
-	mbPenalty=p;
-	return 0;
-}
+// int
+// FactorManager::setPenalty(double p)
+// {
+// 	mbPenalty=p;
+// 	return 0;
+// }
 
 int
 FactorManager::allocateFactorSpace()
 {
-	initFactorSet();
-	populateFactorSet();
+	initFactorSet(); //L Allocate memory and create empty factor objects: this FactorManager's slimFactorSet, which is one gene per SlimFactor
+	populateFactorSet(); //L Assign each factor to a specific variable (gene) and register it in lookup maps
 	return 0;
 }
 
@@ -480,7 +480,7 @@ FactorManager::estimateCanonicalParameters(const char* estMethod)
 int 
 FactorManager::learnStructure()
 {
-	Error::ErrorCode err=estimateClusterProperties();
+	Error::ErrorCode err=estimateClusterProperties(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the training data mean and covar (variance) and set the markov bnkt score to be the joint entorpy too
 	if(err!=Error::SUCCESS)
 	{
 		cout <<Error::getErrorString(err) << endl;
@@ -1124,21 +1124,21 @@ FactorManager::readRestrictedVarlist(const char* aFName)
 {
 	ifstream inFile(aFName);
 	char buffer[1024];
-	VSET& varSet=vMgr->getVariableSet();
-	while(inFile.good())
+	VSET& varSet=vMgr->getVariableSet(); //L get this fgMgr’s variableSet from VariableManager
+	while(inFile.good()) //L for each line in the regulator file
 	{
-		inFile.getline(buffer,1023);
-		if(strlen(buffer)<=0)
+		inFile.getline(buffer,1023); //L read this line (regulator name) in buffer
+		if(strlen(buffer)<=0) //L if a line is empty, skip it
 		{
 			continue;
 		}
-		string varName(buffer);
-		int varID=vMgr->getVarID(varName.c_str());
-		if(varID==-1)
+		string varName(buffer); //L let the string varName be this line's regulator name
+		int varID=vMgr->getVarID(varName.c_str()); //L get this regulator's variable ID, -1 if it didn't exist in the gene expression
+		if(varID==-1) //L If it didn't exist in the gene expression, skip
 		{
 			continue;
 		}
-		restrictedNeighborList[varID]=varSet[varID];;
+		restrictedNeighborList[varID]=varSet[varID];; //L add this regulator to the restrictedNeighborList map
 	}
 	inFile.close();
 	return 0;
@@ -1896,11 +1896,11 @@ FactorManager::getFactorIndex(int* vIds, int vCnt)
 
 int
 FactorManager::getFactorKey(int* vIds, int vCnt, string& key)
-{
+{ //L generate a unique string identifier (a "key") based on an array of integer IDs
 	for(int v=0;v<vCnt;v++)
 	{
 		char aBuff[56];
-		sprintf(aBuff,"-%d",vIds[v]);
+		sprintf(aBuff,"-%d",vIds[v]); //L if vIds=[13, 54, 9], this generates string "-13-54-9"
 		key.append(aBuff);
 	}
 	return 0;
@@ -1939,39 +1939,39 @@ FactorManager::getClusterCnt(int vId, int cSize, int N)
 
 int
 FactorManager::initFactorSet()
-{	
-	int vCnt=vMgr->getVariableSet().size();
-	cout <<" Number of factors " << vCnt << endl;
-	for(int i=0;i<vCnt;i++)
+{ //L creates slimFactorSet[0..vCnt-1]. each factor has space for 1 gene (variable)
+	int vCnt=vMgr->getVariableSet().size(); //L vCnt = number of genes
+	cout <<"Number of factors (genes): " << vCnt << endl;
+	for(int i=0;i<vCnt;i++) //L for each gene
 	{
-		SlimFactor* sFactor=new SlimFactor;
+		SlimFactor* sFactor=new SlimFactor; //L create a new SlimFactor per gene
 		slimFactorSet[i]=sFactor;
-		sFactor->vIds=new int[1];
+		sFactor->vIds=new int[1]; //L array of size 1, but it has no value set
 		sFactor->vCnt=1;
 		sFactor->mutualInfo=0;
 		sFactor->jointEntropy=0;
 		sFactor->fId=globalFactorID;
 		globalFactorID++;
 	}
-	cout << "Global factor id " << globalFactorID << endl;
+	//L cout << "Global factor id: " << globalFactorID << endl; //L prints next available ID after initialization
 	return 0;
 }
 
 //Here we simply write to the memory that we have allocated
 int
 FactorManager::populateFactorSet()
-{
+{ //L assign each slimFactor to a gene (variable)
 	int currFid=0;
 	map<int,Variable*>& variableSet=vMgr->getVariableSet();
-	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++)
+	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++) //L for each variable (gene)
 	{
 		SlimFactor* sFactor=slimFactorSet[currFid];
 		currFid++;
-		sFactor->vIds[sFactor->vCnt-1]=vIter->first;
+		sFactor->vIds[sFactor->vCnt-1]=vIter->first; //L sFactor->vIds[0] = variableID
 		string fKey;
-		getFactorKey(sFactor->vIds,sFactor->vCnt,fKey);
-		factorNameToIDMap[fKey]=sFactor->fId;
-		factorIDToNameMap[sFactor->fId]=fKey;
+		getFactorKey(sFactor->vIds,sFactor->vCnt,fKey); //L if vIds=[13, 54, 9], this generates string "-13-54-9" in fKey. But at this point, if maxFactorSize>1, the first maxFactorSize-1 integers were never intialized...
+		factorNameToIDMap[fKey]=sFactor->fId; //L have the string be able to map to the ID
+		factorIDToNameMap[sFactor->fId]=fKey; //L have the ID be able to map to the string
 	}
 	return 0;
 }
@@ -1998,12 +1998,12 @@ FactorManager::estimateClusterProperties()
 {
 	struct timeval begintime;
 	struct timeval endtime;
-	gettimeofday(&begintime,NULL);
+	gettimeofday(&begintime,NULL); 
 	
-	Error::ErrorCode err=potMgr->populatePotentialsSlimFactors(slimFactorSet,vMgr->getVariableSet());
+	Error::ErrorCode err=potMgr->populatePotentialsSlimFactors(slimFactorSet,vMgr->getVariableSet()); //L populate each SlimFactor with its joint entropy (based on this slimfactor's variable's (just one gene) covariance (variance, since just one gene) from entire TRAINING DATA
 
 	gettimeofday(&endtime,NULL);
-	cout << "Time elapsed " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
+	cout << "Time elapsed to populate SlimFactors with joint entropy: " << endtime.tv_sec-begintime.tv_sec<< " seconds and " << endtime.tv_usec-begintime.tv_usec << " micro secs" << endl;
 
 	if(err!=Error::SUCCESS)
 	{
@@ -2012,7 +2012,7 @@ FactorManager::estimateClusterProperties()
 	for(map<int,SlimFactor*>::iterator fIter=slimFactorSet.begin();fIter!=slimFactorSet.end();fIter++)
 	{
 		SlimFactor* sFactor=fIter->second;
-		sFactor->mbScore=sFactor->jointEntropy;
+		sFactor->mbScore=sFactor->jointEntropy; //L set the SlimFactor's markov bnkt score to just be the joint entropy, since for a factor of size 1, the Markov blanket score is just the joint entropy of that variable (gene)
 	}
 	return Error::SUCCESS;
 }

@@ -34,7 +34,7 @@ class FactorManager
 		int setOutputDir(const char*);
 		int setGraph(Graph*);
 		int setBeamSize(int);
-		int setPenalty(double);
+		//L int setPenalty(double);
 		
 		int allocateFactorSpace();
 		int allocateFactorSpace_Graph();
@@ -144,7 +144,7 @@ class FactorManager
 		int defInstID;
 		INTINTMAP defInstMap;
 		int beamSize;
-		double mbPenalty;
+		//L double mbPenalty;
 		map<int,Variable*> restrictedNeighborList;
 };
 #endif

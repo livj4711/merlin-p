@@ -3,7 +3,6 @@
 #include <cstring>
 #include <getopt.h>
 
-using namespace std;
 #include "Error.H"
 #include "Variable.H"
 #include "VariableManager.H"
@@ -29,209 +28,163 @@ using namespace std;
 
 #include "Framework.H"
 
-Framework::Framework()
+//L Removed dead commented-out code, using namespace std, redundant oldoptind tracking, and the duplicate '?' case in the switch.
+//L wDefaults, int c, epsThreshold, and outFilePrefix were all unused in the original code and have been removed for clarity.
+
+static void printUsage()
 {
-	epsThreshold=-1;
+    std::cout
+        << "MERLIN-P GRN Inference\n"
+        << "  -d gene_expression_file\n"
+        << "  -k maxfactorsize (default size_of_dataset)\n"
+        << "  -v cross_validation_cnt (default 1)\n"
+        << "  -l restricted_regulator_fname\n"
+        << "  -p sparsity_prior (default -5)\n"
+        << "  -r module_prior (default 4)\n"
+        << "  -q prior_config\n"
+        << "  -o outputdirectory\n"
+        << "  -c moduleassignment (default random_partitioning)\n"
+        << "  -h hierarchical_clustering_threshold (default 0.6)\n"
+        << "  -f specificfold_torun (default is -1)\n";
 }
 
-Framework::~Framework()
-{
-}
+Framework::Framework() = default;
+Framework::~Framework() = default;
 
-//We will use getopt here
-//The options are 
-//-m modelname
-//-o outputdir
-//-e epsilon to control the number of standard deviations above random
-//-k maxfactorsize
-//-s number of samples for approximate information estimation
-//-x k for which we approximate information
-//-n cnt of the top candidate MBs to save
-
-Error::ErrorCode
-Framework::init(int argc, char** argv)
+Error::ErrorCode Framework::init(int argc, char** argv)
 {
-	int c;
-	//char outFilePrefix[256];
-	bool cvDefault = true;
-	bool hDefault = true;
-	bool pDefault = true;
-	bool kDefault = true;
-	bool rDefault = true;
+	bool dDefault = true;
 	bool oDefault = true;
-	bool wDefault = true;
-	bool clusterDefault=true;
-	bool regDefault=true;
-	int optret='-';
-	opterr=1;
-	int oldoptind=optind;
- 
-	while(optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:")!=-1)
-	{
-		if(optret=='?')
-		{
-			cout <<"Option error " << optopt << endl;
-			return Error::UNKNOWN;
-		}
-		char c;
-		char* my_optarg=NULL;
-		c=*(argv[oldoptind]+1);
-		if(optind-oldoptind ==2)
-		{
-			my_optarg=argv[oldoptind+1];	
-		}
-		else
-		{
-			my_optarg=argv[oldoptind]+2;
-		}
-		switch(c)
-		{
-			case 'd':
-			{
-				/*
-				// check extension - should be .tsv
-				char* ext = strrchr(optarg, '.');
-				if(ext != NULL)
-				{
-					if(strncmp(ext + 1, "tsv", 3) != 0)
-					{
-						cerr << "expression data should be *.tsv "  << endl;
-						return Error::DATAFILE_ERR;
-					}
-				}
-				*/
-	
-				Error::ErrorCode eCode = varManager.readVariables(optarg);
-				if(eCode != Error::SUCCESS)
-				{
-					cerr << Error::getErrorString(eCode) << endl;
-					return eCode;
-				}
+	bool kDefault = true;
+	bool cvDefault = true;
+	bool regDefault = true;
+	bool pDefault = true;
+	bool rDefault = true;
+	bool moduleDefault = true;
+	bool hDefault = true;
 
-				evManager.setVariableManager(&varManager);
+    int opt;
+    while ((opt = getopt(argc, argv, "o:k:d:v:l:p:r:c:h:f:q:")) != -1) //L opt gets assigned the return value of getopt, which is the option character or '?' on error
+    {
+        switch (opt)
+        {
+            case 'd': // expression file
+            {
+				dDefault=false;
+                Error::ErrorCode eCode = varManager.readVariables(optarg);
+                if (eCode != Error::SUCCESS)
+                {
+                    std::cerr << Error::getErrorString(eCode) << '\n';
+                    return eCode;
+                }
 
-				eCode = evManager.loadEvidenceFromFile_Continuous(optarg);
-				if(eCode != Error::SUCCESS)
-				{
-					cerr << Error::getErrorString(eCode) << endl;
-					return eCode;
-				}
-				metaLearner.setGlobalEvidenceManager(&evManager);
-				metaLearner.setVariableManager(&varManager);
-			
-				//strncpy(outFilePrefix, optarg, strlen(optarg) - 4);
-				//outFilePrefix[strlen(optarg)-4] = '\0';
+                evManager.setVariableManager(&varManager);
 
-				break;
-			}
-			case 'o': // output file - predictions
+                eCode = evManager.loadEvidenceFromFile(optarg);
+                if (eCode != Error::SUCCESS)
+                {
+                    std::cerr << Error::getErrorString(eCode) << '\n';
+                    return eCode;
+                }
+
+                metaLearner.setGlobalEvidenceManager(&evManager);
+                metaLearner.setVariableManager(&varManager);
+                break;
+            }
+			case 'o': // output file 
 			{
 				oDefault=false;
-				//metaLearner.setOutputPredictionName(optarg);
 				metaLearner.setOutputDirName(optarg);	
 				break;
 			}
-			/*
-			case 'w': // output file - model
-			{
-				wDefault=false;
-				metaLearner.setOutputModuleName(optarg);
-				break;
-			}
-			*/
-			case 'k':
-			{
-				int aSize = atoi(optarg);
-				metaLearner.setMaxFactorSize_Approx(aSize);
+            case 'k': // max factor size (max # regs per gene)
+            {
 				kDefault=false;
-				break;
-			}
-			case 'v':
-			{
+                metaLearner.setMaxFactorSize_Approx(std::atoi(optarg));
+                break;
+            }
+            case 'v': // cross validation count
+            {
 				cvDefault=false;
-				cvCnt = atoi(optarg);
-				if(cvCnt <= 0) 
-				{
-					cerr << "Cross validation count should be greater than zero.\n";
-					return Error::UNKNOWN;
-				}
-				break;
-			}
-			case 'l':
-			{
+                cvCnt = std::atoi(optarg);
+                if (cvCnt <= 0)
+                {
+                    std::cerr << "Cross validation count should be greater than zero.\n";
+                    return Error::UNKNOWN;
+                }
+                break;
+            }
+            case 'l': // list of restricted/known regulators
+            {
 				regDefault=false;
-				metaLearner.setRestrictedList(optarg);
-				break;
-			}
-			case 'p':
-			{
+                metaLearner.setRestrictedList(optarg);
+                break;
+            }
+            case 'p': //sparsity parameter
+            {
 				pDefault=false;
-				metaLearner.setBeta1(atof(optarg));
-				break;
-			}
+                metaLearner.setBeta1(std::atof(optarg));
+                break;
+            }
 			case 'r':
 			{
 				rDefault=false;
-				metaLearner.setBeta_Motif(atof(optarg));
+				metaLearner.setBeta_Motif(std::atof(optarg));
 				break;
 			}
 			case 'q':
 			{
-				metaLearner.setPriorGraph_All(my_optarg);
+				metaLearner.setPriorGraph_All(optarg);
 				break;
 			}
 			case 'c':
 			{
-				clusterDefault=false;
+				moduleDefault=false;
 				metaLearner.readModuleMembership(optarg);
 				break;
 			}
 			case 'h':
 			{
 				hDefault = false;
-				metaLearner.setClusteringThreshold(atof(optarg));
+				metaLearner.setClusteringThreshold(std::atof(optarg));
 				break;
 			}
 			case 'f':
 			{
-				metaLearner.setSpecificFold(atoi(optarg));
+				metaLearner.setSpecificFold(std::atoi(optarg));
 				break;
 			}
-			case '?':
+            case '?':
+            default:
 			{
-				/* getopt_long already printed an error message. */
-				cerr << "Option error " << optopt << endl;
-				return Error::UNKNOWN;
+                std::cerr << "Option parsing error\n";
+                return Error::UNKNOWN;
 			}
-			default:
-			{
-				cerr << "Unhandled option " << c << endl;
-				return Error::UNKNOWN;
-			}
-		}
-		oldoptind=optind;
+        }
+    }
+
+    // Validate required options
+	if(dDefault)
+	{
+		std::cerr << "Please specify the name of expression file. (option -d)\n";
+		return Error::UNKNOWN;
+	}	
+    if(oDefault)
+	{
+		std::cerr << "Please specify the name of output directory. (option -o)\n";
+		return Error::UNKNOWN;
+	}	
+    if(regDefault)
+	{
+		std::cerr << "Please input a file of regulators. (option -l)\n";
+		return Error::UNKNOWN;
 	}
 
-	if(regDefault)
+
+    // Apply defaults for unset options
+	if(moduleDefault)
 	{
-		cerr << "Please input a file of regulators. (option -l)\n";
-		return Error::UNKNOWN;
-	}
-	if(oDefault)
-	{
-		cerr << "Please specify the name of output directory. (option -o)\n";
-		return Error::UNKNOWN;
-	}
-	/*
-	if(wDefault)
-	{
-		char moduleFName[128];
-		sprintf(moduleFName,"%s_MERLIN_modules.txt", outFilePrefix);
-		metaLearner.setOutputModuleName(moduleFName);
-	}*/
-	if(clusterDefault)
-	{
-		cout << "Setting to default clustering" << endl;
+		std::cout << "Setting to default module membership\n";
 		metaLearner.setDefaultModuleMembership();
 	}
 	if(cvDefault)
@@ -255,42 +208,29 @@ Framework::init(int argc, char** argv)
 		metaLearner.setBeta_Motif(4);
 	}
 
+	//J metaLearner.initPartitions(1);
 	return Error::SUCCESS;
 }
 
-int 
-Framework::start()
+int Framework::start()
 {
-	metaLearner.doCrossValidation(cvCnt);
-	return 0;
+    metaLearner.doCrossValidation(cvCnt);
+    return 0;
 }
 
-
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
-	if(argc<2)
-	{
-		cout <<"factorGraphInf " <<  endl
-			<<"-d gene_expression_file " << endl
-			<< "-k maxfactorsize (default size_of_dataset)" << endl
-			<< "-v cross_validation_cnt (default 1)" << endl
-			<< "-l restricted_regulator_fname" << endl
-			<< "-p sparsity_prior (default -5)" << endl
-			<< "-r module_prior (default 4)" << endl
-			<< "-q prior_config" << endl
-			<< "-o outputdirectory" << endl
-			<< "-c clusterassignment (default random_partitioning) "<< endl
-			<< "-h hierarchical_clustering_threshold (default 0.6)"<< endl
-			<< "-f specificfold_torun (default is -1)" << endl ;
-		return 0;
-	}
-	Framework fw;
-	if(fw.init(argc,argv)!=Error::SUCCESS)
-	{
-		return -1;
-	}
-	fw.start();
-	return 0;
-}
+    if (argc < 2)
+    {
+        printUsage();
+        return 0;
+    }
 
+    Framework fw;
+    if (fw.init(argc, argv) != Error::SUCCESS)
+    {
+        return -1;
+    }
+    fw.start();
+    return 0;
+}

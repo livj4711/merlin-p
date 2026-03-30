@@ -22,11 +22,11 @@ VariableManager::readVariables(const char* aFName)
 {
 	ifstream inFile(aFName);
 	char buffer[400000];
-	int nodeCnt=0;
+	//L int nodeCnt=0; //unused
 
-	if(inFile.good())
+	if(inFile.good()) 
 	{
-		inFile.getline(buffer,400000);
+		inFile.getline(buffer,400000); //L read the first line, the header, containing the gene names
 
 		if(strlen(buffer)<=0)
 		{
@@ -53,7 +53,7 @@ VariableManager::readVariables(const char* aFName)
 
 	inFile.close();
 
-	cout <<"Read information about " << variableSet.size() << " variables " << endl;
+	cout <<"Read information about " << variableSet.size() << " genes " << endl; //L say genes instead of variables
 
 	return Error::SUCCESS;
 }

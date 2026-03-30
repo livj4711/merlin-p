@@ -24,7 +24,7 @@ class MetaLearner
 	MetaLearner();
 	~MetaLearner();
 	int setMaxFactorSize_Approx(int);
-	int setPenalty(double);
+	//L int setPenalty(double);
 	int setBeta1(double aval);
 	int setBeta_Motif(double bval);
 	int setLambda(double bval);
@@ -82,7 +82,7 @@ class MetaLearner
 	VariableManager* varManager;
 
 	int maxFactorSizeApprox;
-	double penalty;
+	//L double penalty;
 	double convThreshold;
 	char restrictedFName[1024];
 	map<string,int> edgeMap;

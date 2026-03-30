@@ -53,12 +53,12 @@ MetaLearner::setMaxFactorSize_Approx(int aVal)
 	return 0;
 }
 
-int 
-MetaLearner::setPenalty(double aVal)
-{
-	penalty=aVal;
-	return 0;
-}
+// int 
+// MetaLearner::setPenalty(double aVal)
+// {
+// 	penalty=aVal;
+// 	return 0;
+// }
 
 int
 MetaLearner::setBeta1(double aval)
@@ -84,8 +84,13 @@ int
 MetaLearner::setPriorGraph_All(const char* aFName)
 {
 	ifstream inFile(aFName);
+    if (!inFile.is_open())
+    {
+        std::cerr << "Error: Prior config file path incorrect or file cannot be opened: " << aFName << std::endl;
+    }
+	
 	char buffer[1024];
-	while(inFile.good())
+	while(inFile.good()) //L for each prior network provided in the prior config file
 	{
 		inFile.getline(buffer,1023);
 		if(strlen(buffer)<=0)
@@ -99,15 +104,15 @@ MetaLearner::setPriorGraph_All(const char* aFName)
 		int tokCnt=0;
 		while(tok!=NULL)
 		{
-			if(tokCnt==0)
+			if(tokCnt==0) //L first tok = prior graph name
 			{
 				gname.append(tok);
 			}
-			else if(tokCnt==1)
+			else if(tokCnt==1) //L second tok = prior graph file location/name
 			{
 				fname.append(tok);
 			}
-			else if(tokCnt==2)
+			else if(tokCnt==2) //L third tok = beta/confidence for this prior graph
 			{
 				gbeta=atof(tok);
 			}
@@ -116,7 +121,7 @@ MetaLearner::setPriorGraph_All(const char* aFName)
 		}
 		betamap[gname] = gbeta;
 		map<string,map<string,double>*>* priorGraph = new map<string,map<string,double>*>();
-		setPriorGraph(fname.c_str(),*priorGraph);
+		setPriorGraph(fname.c_str(),*priorGraph); //L read all edge information of this prior network into priorGraph
 		priorgraphmap[gname] = priorGraph;
 	}
 	inFile.close();
@@ -150,7 +155,10 @@ MetaLearner::setRestrictedList(const char* aFName)
 	strcpy(restrictedFName,aFName);
 	ifstream inFile(restrictedFName);
 	string buffer;
-	while(inFile.good())
+
+	int count = 0; // counter for number of restricted regulators
+
+	while(inFile.good()) //L for each line (regulator) in the restricted regulator list file
 	{
 		getline(inFile,buffer);
 		if(buffer.length()<=0)
@@ -158,8 +166,10 @@ MetaLearner::setRestrictedList(const char* aFName)
 			continue;
 		}
 		restrictedVarList[buffer]=0;
+		count++;
 	}
 	inFile.close();
+	std::cout << "Number of regulators read: " << count << std::endl;
 	return 0;
 }
 
@@ -212,7 +222,7 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 {
 	ifstream inFile(aFName);
 	char buffer[1024];
-	while(inFile.good())
+	while(inFile.good()) //L for each line (edge) in the prior graph file
 	{
 		inFile.getline(buffer,1023);
 		if(strlen(buffer)<=0)
@@ -226,15 +236,15 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 		int tokCnt=0;
 		while(tok!=NULL)
 		{
-			if(tokCnt==0)
+			if(tokCnt==0) //L first tok = TF name
 			{
 				tfName.append(tok);
 			}
-			else if(tokCnt==1)
+			else if(tokCnt==1) //L second tok = target gene name
 			{
 				tgtName.append(tok);
 			}
-			else if(tokCnt==2)
+			else if(tokCnt==2) //L third tok = edge strength
 			{
 				edgeStrength=atof(tok);
 			}
@@ -242,12 +252,12 @@ MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& 
 			tokCnt++;
 		}
 		map<string,double>* tgtSet=NULL;
-		if(priorGraph.find(tfName)==priorGraph.end())
+		if(priorGraph.find(tfName)==priorGraph.end()) //L if this TF is not already in the prior graph, add it with an empty target set
 		{
 			tgtSet=new map<string,double>;
 			priorGraph[tfName]=tgtSet;
 		}
-		else
+		else //L else if this TF is already in the prior graph, get its target set
 		{
 			tgtSet=priorGraph[tfName];
 		}
@@ -269,7 +279,7 @@ MetaLearner::readModuleMembership(const char* aFName)
 {
 	ifstream inFile(aFName);
 	char buffer[1024];
-	while(inFile.good())
+	while(inFile.good()) //L for each line [gene, moduleID] in the module membership file
 	{
 		inFile.getline(buffer,1023);
 		if(strlen(buffer)<=0)
@@ -282,11 +292,11 @@ MetaLearner::readModuleMembership(const char* aFName)
 		char* tok=strtok(buffer,"\t");
 		while(tok!=NULL)
 		{
-			if(tokCnt==0)
+			if(tokCnt==0) //L first tok = gene name
 			{
 				geneName.append(tok);
 			}
-			else if(tokCnt==1)
+			else if(tokCnt==1) //L second tok = module ID
 			{
 				moduleID=atoi(tok);
 			}
@@ -381,6 +391,8 @@ MetaLearner::setDefaultModuleMembership()
 	return 0;
 }
 
+//J completely remove initPartitions()
+
 int
 MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
 {
@@ -439,7 +451,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 {
 	gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 	rnd=gsl_rng_alloc(gsl_rng_default);
-
+	//L there is now only one evidenceManager for this metaLearner:
 	evidenceManager->setVariableManager(varManager);
 	evidenceManager->setFoldCnt(foldCnt);
 	evidenceManager->splitData(0);
@@ -457,8 +469,9 @@ MetaLearner::doCrossValidation(int foldCnt)
 		foldBegin=specificFold;
 		foldEnd=specificFold+1;
 	}
-	for(int f=foldBegin;f<foldEnd;f++)
-	{	
+	for(int f=foldBegin;f<foldEnd;f++) //L loop over cross-validation folds
+	{
+		//J remove loop through evMgrSet (set of all conditions)	
 		evidenceManager->splitData(f);
 		if(random)
 		{	
@@ -475,7 +488,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 		factorManager->setVariableManager(varManager);
 		factorManager->setOutputDir(outputDirName);
 		factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
-		factorManager->setPenalty(penalty);
+		//L factorManager->setPenalty(penalty);
 		if(strlen(restrictedFName)>0)
 		{
 			factorManager->readRestrictedVarlist(restrictedFName);

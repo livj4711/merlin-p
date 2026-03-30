@@ -25,11 +25,11 @@ Required inputs
 ---------------
 The required inputs of MERLIN are a tab delimited expression file, a list of regulators and an output directory.
 
-**Expression file:** This is a tab delimited file containing the expression values of genes of interest in different cells/samples/conditions/time points. Each column correspond to one gene, first row contain the gene name and the rest of rows are the expression values.
-For an example, see examples/expr.tsv
+**Expression file:** This is a tab delimited file containing the expression values of genes of interest in different samples/conditions/time points. Each column correspond to one gene, first row contain the gene name and the rest of rows are the expression values.
+For an example, see expr.txt
 
 **Regulator list:** This file contains a list of potential regulators (transcription factors, signaling proteins, etc.). The file should contain one regulator per row. The program will infer a network between these regulators and all the genes in the expression file.
-For an example, see examples/regulators.txt
+For an example, see regulators.txt
 
 **Output directory:** When running MERLIN in a cross validation scheme, this directory will contain one sub-directory per fold, otherwise, there would be only one sub-directory named fold0. Each sub-directory will contain two files:
 
@@ -42,16 +42,18 @@ For an example, see examples/regulators.txt
 Optional inputs
 ---------------
 
-**Initial module assignment:** The file contains the initial module assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the module assignment for that gene. For example, see examples/initial_modules.tsv
+**Initial module assignment:** The file contains the initial module assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the module assignment for that gene. For example, see initial_modules.txt
 
-**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). For an example, see examples/prior_config.tsv and examples/prior.tsv
+**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column, should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). For an example, see prior_config.txt and prior.txt
+
+**Resume from incomplete run:** Use -a option to continue from an incomplete run. It will load the incomplete inferred network, module assignments, and iteration count, and will resume from there.
 
 How to run
 ----------
 To run, change to MERLIN directory and run:
 
 ```
-./merlin -d examples/expr.tsv -l examples/regulators.txt -o out_dir/ -c examples/initial_modules.tsv -q examples/prior_config.tsv
+./merlin -d expr.txt -l regulators.txt -o out_dir/ -c initial_modules.txt -q prior_config.txt
 ```
 
 To get the full list of options, run: ./merlin
@@ -60,8 +62,6 @@ How to compile?
 ---------------
 
 To compile the code, changed to MERLIN directory and run: make
-
-To compile the program, you may need to install GSL. If libgsl is already installed, you can remove the "-L$(LIBPATH)" from the Makefile. To run the program, you may need to add the location of installed shared library files to LD_LIBRARY_PATH.
 
 Inferred networks and other resources
 -------------------------------------

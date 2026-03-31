@@ -251,6 +251,14 @@ FactorManager::allocateFactorSpace_Graph()
 	return 0;
 }
 
+int
+FactorManager::prepareInitialSingletonFactors()
+{
+	allocateFactorSpace();
+	learnStructure();
+	return 0;
+}
+
 FactorGraph*
 FactorManager::createInitialFactorGraph()
 {
@@ -271,9 +279,9 @@ FactorManager::createInitialFactorGraph()
 		newFactor->fId=factor->fId;
 		//L newFactor->mutualInfo=factor->mutualInfo; //L 0 sinc there is 0 mutual information between a gene and itself 
 		newFactor->jointEntropy=factor->jointEntropy;
-		newFactor->marginalEntropy=factor->jointEntropy;
-		newFactor->mbScore=factor->mbScore;
-		newFactor->moveScore=factor->moveScore;
+		//L newFactor->marginalEntropy=factor->jointEntropy; //L unused
+		newFactor->mbScore=factor->mbScore; //L the same as jointEntropy for singleton factors
+		//L newFactor->moveScore=factor->moveScore; //L unused
 		fg->setFactor(newFactor);
 	}
 	return fg;
@@ -1121,36 +1129,36 @@ FactorManager::clearLattice(INTINTMAP& mbFactors)
 	return 0;
 }
 
-int 
-FactorManager::readRestrictedVarlist(const char* aFName)
-{
-	ifstream inFile(aFName);
-	char buffer[1024];
-	VSET& varSet=vMgr->getVariableSet(); //L get this fgMgr’s variableSet from VariableManager
-	while(inFile.good()) //L for each line in the regulator file
-	{
-		inFile.getline(buffer,1023); //L read this line (regulator name) in buffer
-		if(strlen(buffer)<=0) //L if a line is empty, skip it
-		{
-			continue;
-		}
-		string varName(buffer); //L let the string varName be this line's regulator name
-		int varID=vMgr->getVarID(varName.c_str()); //L get this regulator's variable ID, -1 if it didn't exist in the gene expression
-		if(varID==-1) //L If it didn't exist in the gene expression, skip
-		{
-			continue;
-		}
-		restrictedNeighborList[varID]=varSet[varID];; //L add this regulator to the restrictedNeighborList map
-	}
-	inFile.close();
-	return 0;
-}
+// int //L unused
+// FactorManager::readRestrictedVarlist(const char* aFName)
+// {
+// 	ifstream inFile(aFName);
+// 	char buffer[1024];
+// 	VSET& varSet=vMgr->getVariableSet(); //L get this fgMgr’s variableSet from VariableManager
+// 	while(inFile.good()) //L for each line in the regulator file
+// 	{
+// 		inFile.getline(buffer,1023); //L read this line (regulator name) in buffer
+// 		if(strlen(buffer)<=0) //L if a line is empty, skip it
+// 		{
+// 			continue;
+// 		}
+// 		string varName(buffer); //L let the string varName be this line's regulator name
+// 		int varID=vMgr->getVarID(varName.c_str()); //L get this regulator's variable ID, -1 if it didn't exist in the gene expression
+// 		if(varID==-1) //L If it didn't exist in the gene expression, skip
+// 		{
+// 			continue;
+// 		}
+// 		restrictedNeighborList[varID]=varSet[varID];; //L add this regulator to the restrictedNeighborList map
+// 	}
+// 	inFile.close();
+// 	return 0;
+// }
 
-map<int,Variable*>& 
-FactorManager::getRestrictedVarlist()
-{
-	return restrictedNeighborList;
-}
+// map<int,Variable*>& //L unused
+// FactorManager::getRestrictedVarlist()
+// {
+// 	return restrictedNeighborList;
+// }
 
 bool 
 FactorManager::checkMonotonicity()

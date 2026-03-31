@@ -68,14 +68,14 @@ MetaLearner::setBeta1(double aval)
 }
 
 int
-MetaLearner::initEdgePriorMeta_All()
+MetaLearner::initEdgePriorMeta_All() //L reverse of setPriorGraph_All...
 {
-	for(map<string,map<string,map<string,double>*>*>::iterator gIter=priorgraphmap.begin();gIter!=priorgraphmap.end();gIter++)
+	for(map<string,map<string,map<string,double>*>*>::iterator gIter=priorgraphmap.begin();gIter!=priorgraphmap.end();gIter++) //L for each prior graph in the priorgraphmap
 	{
-		map<string,map<string,double>*>* priorgraph = gIter->second;
+		map<string,map<string,double>*>* priorgraph = gIter->second; //L get the actual prior graph (edge information) for this prior graph
 		map<int,INTDBLMAP*>* edgeprior = new map<int,INTDBLMAP*>();
-		edgepriormap[gIter->first] = edgeprior;
-		initEdgePriorMeta(*priorgraph,*edgeprior);
+		edgepriormap[gIter->first] = edgeprior; //L initialize a new empty graph into edgepriormap for this prior graph
+		initEdgePriorMeta(gIter->first,*priorgraph,*edgeprior); //L i edited to send  prior name as well. This initializes edgeprior as the "reverse" of priorgraph, which is keyed by the gene whose values are its regulators in the prior (which have edge weights)
 	}
 	return 0;
 }
@@ -394,23 +394,24 @@ MetaLearner::setDefaultModuleMembership()
 //J completely remove initPartitions()
 
 int
-MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
+MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
 {
 	VSET& varSet=varManager->getVariableSet();
-	for(map<string,int>::iterator rIter=restrictedVarList.begin();rIter!=restrictedVarList.end();rIter++)
+	cout << "Initializing prior: \"" << priorName << "\" " << endl;
+	for(map<string,int>::iterator rIter=restrictedVarList.begin();rIter!=restrictedVarList.end();rIter++) //L for each restricted regulator
 	{
 		int regId=varManager->getVarID(rIter->first.c_str());
-		if(regId==-1)
+		if(regId==-1) //Lif regulator wasn't in expression matrix, skip
 		{
 			continue;
 		}
-		if(graph.find(rIter->first)==graph.end())
+		if(graph.find(rIter->first)==graph.end()) //L if this regulator is not in the prior graph, skip
 		{
 			continue;
 		}
 		int tfhit=0;
-		map<string,double>* tgtSet=graph[rIter->first];
-		for(map<string,double>::iterator vIter=tgtSet->begin();vIter!=tgtSet->end();vIter++)
+		map<string,double>* tgtSet=graph[rIter->first]; //L tgtSet is the set of targets for this regulator in the prior graph
+		for(map<string,double>::iterator vIter=tgtSet->begin();vIter!=tgtSet->end();vIter++) //L for each target of this regulator
 		{
 			INTDBLMAP* edgePriorGene=NULL;
 			int tgtId=varManager->getVarID(vIter->first.c_str());
@@ -418,7 +419,7 @@ MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,I
 			{
 				continue;
 			}
-			if(edgePriors.find(tgtId)==edgePriors.end())
+			if(edgePriors.find(tgtId)==edgePriors.end()) //L if this target gene is not already in edgePriors, add it with an empty set of regulators
 			{
 				edgePriorGene=new INTDBLMAP;
 				edgePriors[tgtId]=edgePriorGene;
@@ -427,20 +428,20 @@ MetaLearner::initEdgePriorMeta(map<string,map<string,double>*>& graph, map<int,I
 			{
 				edgePriorGene=edgePriors[tgtId];
 			}
-			double ewt=fabs(vIter->second);
-			if(edgePriorGene->find(regId)==edgePriorGene->end())
+			double ewt=fabs(vIter->second); //L take the absolute value of the edge strength as the edge weight
+			if(edgePriorGene->find(regId)==edgePriorGene->end()) //L if this regulator is not already a regulator of this target in edgePriors, add it with the edge weight as its value
 			{
 				//(*edgePriorGene)[regId]=vIter->second;
-				(*edgePriorGene)[regId]=ewt;
+				(*edgePriorGene)[regId]=ewt; //l * just points to this gene key in edgePriors
 			}
-			else
+			else //L else if this regulator is already a regulator of this target in edgePriors, add the edge weight to the existing value (in case there are multiple edges from this regulator to this target in the prior graph?)
 			{
 				//(*edgePriorGene)[regId]=(*edgePriorGene)[regId]+vIter->second;
 				(*edgePriorGene)[regId]=(*edgePriorGene)[regId]+ewt;
 			}
 			tfhit++;
 		}
-		cout <<"TF: "<< rIter->first << " TFhits= " << tfhit << endl;
+		//L cout << " Regulator "<< rIter->first << " has " << tfhit << " targets" << endl; //L comment this to reduce verbosity
 	}
 
 	return 0;
@@ -478,9 +479,9 @@ MetaLearner::doCrossValidation(int foldCnt)
 			evidenceManager->randomizeEvidence(r); //L permutation test: shuffles genes in all training cells but NOT in test or validation cells to assess statistical significance
 		}
 
-		potManager->reset();
+		potManager->reset(); //L removes data, meanMat, covMat
 		potManager->setRandom(random);
-		potManager->init(); //L initialize the expr matrix and the mean "vector" (mean of gene expression) but set cov matrix to all -1!
+		potManager->init(); //L initialize the expr matrix (data) and the mean "vector" (mean of gene expression) but set cov matrix to all -1! from the TRAINING data
 
 		FactorManager* factorManager=new FactorManager;
 		factorManager->setPotentialManager(potManager);
@@ -489,14 +490,13 @@ MetaLearner::doCrossValidation(int foldCnt)
 		factorManager->setOutputDir(outputDirName);
 		factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
 		//L factorManager->setPenalty(penalty);
-		if(strlen(restrictedFName)>0)
-		{
-			factorManager->readRestrictedVarlist(restrictedFName); //L THIS IS WHERE restrictedNeighborList GETS SET
-		}
-		factorManager->allocateFactorSpace(); //L allocate space for one slimFactor per gene
-		factorManager->learnStructure(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the mean and covar (variance) (from training data) for each slimFactor's gene and set the markov bnkt score to be the joint entropy too
+		// if(strlen(restrictedFName)>0) //L unused
+		// {
+		// 	factorManager->readRestrictedVarlist(restrictedFName); //L THIS IS WHERE factorManager's restrictedNeighborList GETS SET
+		// }
+		factorManager->prepareInitialSingletonFactors(); //L allocate and score one singleton SlimFactor per gene
 
-		factorGraph = factorManager->createInitialFactorGraph(); //L combine all slimfactors (singleton genes; no edges) into on factor graph
+		factorGraph = factorManager->createInitialFactorGraph(); //L combine all slimfactors (singleton genes; no edges) into one factor graph
 
 		delete factorManager;
 
@@ -524,16 +524,15 @@ int
 MetaLearner::start(int f)
 {
 	//Repeat until convergence
-	//int currK=1;
 	currFold=f;
-	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f);
-	int maxMBSizeApprox=maxFactorSizeApprox-1;
-	int currK=maxMBSizeApprox;
+	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f); //L set the output directory for this fold ("examples/out_dir/fold0")
+	//L int maxMBSizeApprox=maxFactorSizeApprox-1; //L remove to make this more intuitive
+	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
 	rnd=gsl_rng_alloc(gsl_rng_default);
 	int rseed=getpid();
 	gsl_rng_set(rnd,rseed);
-	cout <<rseed << endl;
-	initEdgePriorMeta_All();
+	cout << "Random seed: " << rseed << endl;
+	initEdgePriorMeta_All(); //L initialize "edgeprior" for each prior network, which is the "reverse" of priorgraph (key=genes, values=regulators/edgewt dict)
 	initEdgeSet();
 	initPhysicalDegree();
 	int i=0;
@@ -605,7 +604,7 @@ MetaLearner::start(int f)
 				//L struct timeval endtime_v;
 				//L struct timezone begintimezone_v;
 				//L struct timezone endtimezone_v;
-				collectMoves(currK,vID);
+				collectMoves(maxNumRegs,vID);
 				if(moveSet.size()==0)
 				{
 					subiter++;
@@ -619,7 +618,7 @@ MetaLearner::start(int f)
 				{
 				//	notConverged=false;
 				}
-				//dumpAllGraphs(currK,f,iter);
+				//dumpAllGraphs(maxNumRegs,f,iter);
 				currGlobalScore=newScore;
 				//cout <<"Current iter " << iter << " Score after beta-theta " << newScore << endl;
 				subiter++;
@@ -648,7 +647,7 @@ MetaLearner::start(int f)
 			}
 			iter++;
 			//L scorePremodule=currGlobalScore; //L redundant
-			dumpAllGraphs(currK,f,iter);
+			dumpAllGraphs(maxNumRegs,f,iter);
 			//L }
 			//L moduleiter++;
 		}
@@ -733,35 +732,35 @@ int
 MetaLearner::initEdgeSet()
 {
 	VSET& varSet=varManager->getVariableSet();
-	for(VSET_ITER uIter=varSet.begin();uIter!=varSet.end();uIter++)
+	for(VSET_ITER uIter=varSet.begin();uIter!=varSet.end();uIter++) //L for each reg u
 	{
 		Variable* u=varSet[uIter->first];
-		if((restrictedVarList.size()>0) && (restrictedVarList.find(u->getName())==restrictedVarList.end()))
+		if((restrictedVarList.size()>0) && (restrictedVarList.find(u->getName())==restrictedVarList.end())) //L if there is a reg list and regulator u is not in it, skip
 		{
 			continue;
 		}
 
-		for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
+		for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++) //L for each gene v
 		{
-			if(uIter->first==vIter->first)
+			if(uIter->first==vIter->first) //L skip self loops u -> v
 			{
 				continue;
 			}
 			Variable* v=varSet[vIter->first];
-			if(geneModuleID.find(v->getName())==geneModuleID.end())
+			if(geneModuleID.find(v->getName())==geneModuleID.end()) //L if gene isnt associated with a module (it alwasy should be), skip.
 			{	
 				continue;
 			}
 			string edgeKey;
-			//This is going to be a directed graph
+			//This is going to be a directed graph. edgeKey looks like "reg_name\tgene_name"
 			edgeKey.append(u->getName().c_str());
 			edgeKey.append("\t");
 			edgeKey.append(v->getName().c_str());
+			//L edgeMap is an empty map default-initialized when MetaLearner is constructed. we will be a binary indicator map
+			edgeMap[edgeKey]=0; //initialize this edge to absent for the future LEARNED graph
 
-			edgeMap[edgeKey]=0;
-
-			double initPrior=getEdgePrior(uIter->first,vIter->first);
-			initPrior=1/(1+exp(-1*initPrior));
+			double initPrior=getEdgePrior(uIter->first,vIter->first); //L beta_1 + sum(beta_g * edgewt) across all prior networks. beta_1 is sparsity param (default -5), beta_g is confidence in a prior.
+			initPrior = 1/(1+exp(-1*initPrior)); //L convert this log-odds edge prior to probability between 0 and 1
 			if(initPrior<1e-6)
 			{
 				initPrior=1e-6;
@@ -771,8 +770,10 @@ MetaLearner::initEdgeSet()
 				initPrior=1-1e-6;
 			}
 			edgePresenceProb[edgeKey]=initPrior;
-			if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
-			{
+
+			//L varNeighborhoodPrior is a map of gene ID -> sum of log(1-initPrior) for all edges pointing to this gene.
+			if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end()) //L varNeighborhoodPrior default-initialized to an empty map when MetaLearner is constructed
+			{ //L 
 				varNeighborhoodPrior[vIter->first]=log(1-initPrior);
 			}
 			else
@@ -781,14 +782,15 @@ MetaLearner::initEdgeSet()
 			}
 		}
 	}
-	cout <<"Restricted varlist size: " << restrictedVarList.size() << endl;
+	//L cout <<"Restricted varlist size: " << restrictedVarList.size() << endl; //L we print the resticted regulators list size previously
 	int n=varSet.size();
 	int r=restrictedVarList.size();
-	int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ;
-	cout <<"Inited " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl;
+	//L int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ; //L this is the expected edge count for undirected edges
+	int expEdgeCnt=r*(n-1); //L this is the expected edge count for directed edges 
+	//L cout <<"Initialized " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl; //L not necessary to print
 
-	//Init the potentials
-	for(int f=0;f<factorGraph->getFactorCnt();f++)
+	//Initialize the potentials
+	for(int f=0;f<factorGraph->getFactorCnt();f++) //L for each factor (i.e. for each gene, since each factor is one gene at this point)
 	{
 		SlimFactor* sFactor=factorGraph->getFactorAt(f);
 		sFactor->potFunc=new Potential;
@@ -934,7 +936,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 }
 
 int
-MetaLearner::collectMoves(int currK,int rind)
+MetaLearner::collectMoves(int maxNumRegs,int rind)
 {
 	for(int i=0;i<moveSet.size();i++)
 	{
@@ -1001,7 +1003,7 @@ MetaLearner::collectMoves(int currK,int rind)
 		}
 
 		// If v already has the max number of parents, dont test adding another.
-		if(!checkMBSize(regID,vIter->first,currK))
+		if(!checkMBSize(regID,vIter->first,maxNumRegs))
 		{
 			continue;
 		}
@@ -1052,6 +1054,7 @@ MetaLearner::collectMoves(int currK,int rind)
 
 	return 0;
 }
+
 double
 MetaLearner::getModuleWideScoreImprovement(Variable* u, Variable* v,map<string,int>* moduleMembers)
 {
@@ -1266,25 +1269,25 @@ double
 MetaLearner::getEdgePrior(int tfID, int targetID)
 {
 	INTDBLMAP* regPriors=NULL;
-	double prior=beta1;
+	double prior; //L removed initializing this to beta1
 	double fwt = 0;
-	for (map<string,map<int,INTDBLMAP*>*>::iterator pItr=edgepriormap.begin(); pItr!=edgepriormap.end(); pItr++)
+	for (map<string,map<int,INTDBLMAP*>*>::iterator pItr=edgepriormap.begin(); pItr!=edgepriormap.end(); pItr++) //L for each prior network
 	{
 		double eweight=0;
 		double gbeta = 0;
 		map<int,INTDBLMAP*>* edgeprior = pItr->second;
-		if(edgeprior->find(targetID)!=edgeprior->end())
+		if(edgeprior->find(targetID)!=edgeprior->end()) //L if the target gene is in the prior
 		{
-			regPriors=(*edgeprior)[targetID];
-			if(regPriors->find(tfID)!=regPriors->end())
+			regPriors=(*edgeprior)[targetID]; //L get all regualtors of the gene in the prior
+			if(regPriors->find(tfID)!=regPriors->end()) //L if the reguator is a regulator of the gene in the prior
 			{
-				eweight=(*regPriors)[tfID];
-				gbeta = betamap[pItr->first];
-				fwt = fwt + gbeta*eweight;
+				eweight=(*regPriors)[tfID]; 
+				gbeta = betamap[pItr->first]; //L get the weight of this prior network
+				fwt = fwt + gbeta*eweight; 
 			}
 		}
 	}
-	prior=beta1+fwt;
+	prior=beta1+fwt; //L beta1 is the sparsity param, default = -5
 	//if(prior<1e-6)
 	//{
 	//	prior=1e-6;
@@ -1421,11 +1424,11 @@ MetaLearner::attemptMove(MetaMove* move, INTINTMAP* affectedVars)
 }
 
 int
-MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
+MetaLearner::dumpAllGraphs(int maxNumRegs,int foldid,int iter)
 {
 	VSET& varSet=varManager->getVariableSet();
 	char aFName[1024];
-	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,currK+1);
+	sprintf(aFName,"%s/prediction_k%d.txt",foldoutDirName,maxNumRegs+1);
 	ofstream oFile(aFName);
 	factorGraph->dumpVarMB_PairwiseFormat(oFile,varSet);
 	oFile.close();
@@ -1433,11 +1436,11 @@ MetaLearner::dumpAllGraphs(int currK,int foldid,int iter)
 }
 
 bool 
-MetaLearner::checkMBSize(int u,int v, int currK)
+MetaLearner::checkMBSize(int u,int v, int maxNumRegs)
 {
 	bool check=true;
 	SlimFactor* dFactor=factorGraph->getFactorAt(v);
-	if((dFactor->mergedMB.size()>=currK) && (dFactor->mergedMB.find(u)==dFactor->mergedMB.end()))
+	if((dFactor->mergedMB.size()>=maxNumRegs) && (dFactor->mergedMB.find(u)==dFactor->mergedMB.end()))
 	{
 		check=false;
 	}

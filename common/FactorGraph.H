@@ -25,7 +25,7 @@ class FactorGraph
 	int dumpVarMB_PairwiseFormat(ofstream&, VSET&);
 	int dumpBias(ofstream&, VSET&,map<string,int>&);
 	int readVarMB_PairwiseFormat(const char* aFName,VariableManager* vMgr,FactorManager* fMgr);
-	int dumpCandidateVarMB_PairwiseFormat(const char*,int,VSET&,FactorManager*);
+	//L int dumpCandidateVarMB_PairwiseFormat(const char*,int,VSET&,FactorManager*); //L unused
 	bool isConsistent();
 	private:
 	int showFactor_PW(SlimFactor*,ostream&,VSET& variableSet);

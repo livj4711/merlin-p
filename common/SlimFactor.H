@@ -29,9 +29,9 @@ class SlimFactor
 		//int secondPId;
 		//L double mutualInfo;
 		double jointEntropy;
-		double marginalEntropy;
+		//L double marginalEntropy; //L unused
 		double mbScore;
-		double moveScore;
+		//L double moveScore; //L unused
 	//	double confidence;
 		//Number of subsets that might be referring to this factor
 		int refCnt;

@@ -38,6 +38,7 @@ class FactorManager
 		
 		int allocateFactorSpace();
 		int allocateFactorSpace_Graph();
+		int prepareInitialSingletonFactors();
 
 		FactorGraph* createInitialFactorGraph();
 
@@ -74,7 +75,7 @@ class FactorManager
 		int updateRefCnt(int,int);
 		int clearLattice(INTINTMAP&);
 
-		int readRestrictedVarlist(const char*);
+		//L int readRestrictedVarlist(const char*); unused
 		map<int,Variable*>& getRestrictedVarlist();
 	private:
 		int makeMarkovBlanketConsistent(SlimFactor*);

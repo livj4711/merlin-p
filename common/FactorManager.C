@@ -251,14 +251,6 @@ FactorManager::allocateFactorSpace_Graph()
 	return 0;
 }
 
-int
-FactorManager::prepareInitialSingletonFactors()
-{
-	allocateFactorSpace();
-	learnStructure();
-	return 0;
-}
-
 FactorGraph*
 FactorManager::createInitialFactorGraph()
 {
@@ -1128,37 +1120,6 @@ FactorManager::clearLattice(INTINTMAP& mbFactors)
 	potMgr->clearJointEntropies();
 	return 0;
 }
-
-// int //L unused
-// FactorManager::readRestrictedVarlist(const char* aFName)
-// {
-// 	ifstream inFile(aFName);
-// 	char buffer[1024];
-// 	VSET& varSet=vMgr->getVariableSet(); //L get this fgMgr’s variableSet from VariableManager
-// 	while(inFile.good()) //L for each line in the regulator file
-// 	{
-// 		inFile.getline(buffer,1023); //L read this line (regulator name) in buffer
-// 		if(strlen(buffer)<=0) //L if a line is empty, skip it
-// 		{
-// 			continue;
-// 		}
-// 		string varName(buffer); //L let the string varName be this line's regulator name
-// 		int varID=vMgr->getVarID(varName.c_str()); //L get this regulator's variable ID, -1 if it didn't exist in the gene expression
-// 		if(varID==-1) //L If it didn't exist in the gene expression, skip
-// 		{
-// 			continue;
-// 		}
-// 		restrictedNeighborList[varID]=varSet[varID];; //L add this regulator to the restrictedNeighborList map
-// 	}
-// 	inFile.close();
-// 	return 0;
-// }
-
-// map<int,Variable*>& //L unused
-// FactorManager::getRestrictedVarlist()
-// {
-// 	return restrictedNeighborList;
-// }
 
 bool 
 FactorManager::checkMonotonicity()

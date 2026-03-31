@@ -261,29 +261,29 @@ FactorGraph::readVarMB_PairwiseFormat(const char* aFName,VariableManager* vMgr,F
 }
 
 
-int 
-FactorGraph::dumpCandidateVarMB_PairwiseFormat(const char* outputDir,int maxk,VSET& variableSet,FactorManager* fMgr)
-{
-	char aFName[1024];
-	sprintf(aFName,"%s/candidatevar_mb_pw_k%d.txt",outputDir,maxk);
-	ofstream oFile(aFName);
-	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
-	{
-		SlimFactor* sFactor=aIter->second;
-		if(sFactor->vCnt>1)
-		{
-			break;
-		}
-		//Now show the Markov blankets of this factor
-		for(INTDBLMAP_ITER idIter=sFactor->candidateNeighbours.begin();idIter!=sFactor->candidateNeighbours.end();idIter++)
-		{
-			oFile << variableSet[sFactor->vIds[0]]->getName()<< "\t" 
-			<< variableSet[idIter->first]->getName() << "\t" << idIter->second << "\t" << sFactor->marginalEntropy-idIter->second << endl;
-		}
-	}
-	oFile.close();
-	return 0;
-}
+// int //L unused
+// FactorGraph::dumpCandidateVarMB_PairwiseFormat(const char* outputDir,int maxk,VSET& variableSet,FactorManager* fMgr)
+// {
+// 	char aFName[1024];
+// 	sprintf(aFName,"%s/candidatevar_mb_pw_k%d.txt",outputDir,maxk);
+// 	ofstream oFile(aFName);
+// 	for(map<int,SlimFactor*>::iterator aIter=factorSet.begin();aIter!=factorSet.end();aIter++)
+// 	{
+// 		SlimFactor* sFactor=aIter->second;
+// 		if(sFactor->vCnt>1)
+// 		{
+// 			break;
+// 		}
+// 		//Now show the Markov blankets of this factor
+// 		for(INTDBLMAP_ITER idIter=sFactor->candidateNeighbours.begin();idIter!=sFactor->candidateNeighbours.end();idIter++)
+// 		{
+// 			oFile << variableSet[sFactor->vIds[0]]->getName()<< "\t" 
+// 			<< variableSet[idIter->first]->getName() << "\t" << idIter->second << "\t" << sFactor->marginalEntropy-idIter->second << endl;
+// 		}
+// 	}
+// 	oFile.close();
+// 	return 0;
+// }
 
 //Here we just check if the mutual consistency check holds
 

@@ -489,12 +489,9 @@ MetaLearner::doCrossValidation(int foldCnt)
 		factorManager->setVariableManager(varManager);
 		factorManager->setOutputDir(outputDirName);
 		factorManager->setMaxFactorSize_Approx(maxFactorSizeApprox);
-		//L factorManager->setPenalty(penalty);
-		// if(strlen(restrictedFName)>0) //L unused
-		// {
-		// 	factorManager->readRestrictedVarlist(restrictedFName); //L THIS IS WHERE factorManager's restrictedNeighborList GETS SET
-		// }
-		factorManager->prepareInitialSingletonFactors(); //L allocate and score one singleton SlimFactor per gene
+
+		factorManager->allocateFactorSpace(); //L allocate space for one slimFactor per gene
+		factorManager->learnStructure(); //L calculate the joint entropy for each SlimFactor (singleton gene factor) from the mean and covar (variance) (from training data) for each slimFactor's gene and set the markov bnkt score to be the joint entropy too
 
 		factorGraph = factorManager->createInitialFactorGraph(); //L combine all slimfactors (singleton genes; no edges) into one factor graph
 
@@ -773,7 +770,7 @@ MetaLearner::initEdgeSet()
 
 			//L varNeighborhoodPrior is a map of gene ID -> sum of log(1-initPrior) for all edges pointing to this gene.
 			if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end()) //L varNeighborhoodPrior default-initialized to an empty map when MetaLearner is constructed
-			{ //L 
+			{ 
 				varNeighborhoodPrior[vIter->first]=log(1-initPrior);
 			}
 			else

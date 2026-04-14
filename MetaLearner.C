@@ -929,6 +929,7 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, st
 	double minus = 0;
 	for (vector<int>::iterator iter = parentIDs.begin(); iter != parentIDs.end(); iter++)
 	{
+<<<<<<< Updated upstream
 		Variable* parentVar = varSet[*iter];
 		double eprior = getEdgePrior(*iter, factorID);
 		double moduleContrib = getModuleContribLogistic((string&)v->getName(), (string&)parentVar->getName());
@@ -936,6 +937,88 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, st
 		double edgeProbOld = 1 / (1 + exp(-1 * eprior));
 		minus += log(1 - edgeProbOld);
 		plus += log(edgeProb);
+=======
+		int nID=varManager->getVarID(mIter->first.c_str());
+		if(nID==vID)
+		{
+			continue;
+		}
+
+		if(nID==uID)
+		{
+			continue;
+		}
+		SlimFactor* sFactor=factorGraph->getFactorAt(nID);
+		if(sFactor->mergedMB.find(uID)!=sFactor->mergedMB.end())
+		{
+			continue;
+		}
+		double scoreImprovement;
+		double mbScore;
+		Potential* dPot=NULL;
+		string edgeKey(u->getName());
+		edgeKey.append("\t");
+		edgeKey.append(mIter->first.c_str());
+		getNewPLLScore(u,varSet[nID],edgeKey,mbScore,scoreImprovement,&dPot);
+		if(dPot!=NULL)
+		{
+			delete dPot;
+		}
+		moduleScore=moduleScore+scoreImprovement;
+		neighborCnt++;
+	}
+	double score=moduleScore/neighborCnt;
+	return score;
+}
+
+
+int
+MetaLearner::getNewPLLScore(Variable* u, Variable* v, string& edgeKey, double& mbScore, double& scoreImprovement, Potential** newdPot)
+{ //L simulate adding edge (u, v), rebuild local conditional model, and compute the prior-side score delta
+	VSET& varSet=varManager->getVariableSet();
+	bool dPotDel=true;
+	scoreImprovement=0;
+	double currPrior=varNeighborhoodPrior[v->getID()];
+	double plus=0;
+	double minus=0;
+
+	SlimFactor* dFactor=factorGraph->getFactorAt(v->getID());
+
+	// If u is already a parent of v, then we dont need to remove it at the end of this function.
+	if(dFactor->mergedMB.find(u->getID())!=dFactor->mergedMB.end())
+	{
+		dPotDel=false;
+	}
+	dFactor->mergedMB[u->getID()]=0;
+
+	Potential *dPot=new Potential;
+	dPot->setAssocVariable(varSet[dFactor->fId],Potential::FACTOR);
+	for(INTINTMAP_ITER mIter=dFactor->mergedMB.begin();mIter!=dFactor->mergedMB.end();mIter++) //L for each current parent of v (including new reg u), add to the potential
+	{
+		Variable* aVar=varSet[mIter->first];
+		dPot->setAssocVariable(aVar,Potential::MARKOV_BNKT);
+		double eprior=getEdgePrior(mIter->first,v->getID());
+		double moduleContrib=getModuleContribLogistic((string&)v->getName(),(string&)aVar->getName()); //L adding the module prior to the edge priors. I change from u to aVar since we want to consider the contribution of all current parents of v, not just the new reg u
+		double edgeProb=1/(1+exp(-1*(eprior+moduleContrib)));
+		double edgeProbOld=1/(1+exp(-1*(eprior)));
+		minus=minus+log(1-edgeProbOld);
+		plus=plus+log(edgeProb);
+	}
+	dPot->potZeroInit();
+	dPot->setCondBias(dFactor->potFunc->getCondBias());
+	dPot->setCondVariance(dFactor->potFunc->getCondVariance());
+	dPot->setCondWeight(dFactor->potFunc->getCondWeight());
+
+	currPrior=currPrior+plus-minus;
+	double newPLL_d=0;
+	*newdPot=dPot;
+	potManager->populatePotential(*newdPot);
+	(*newdPot)->initMBCovMean();
+
+	if((dPot->getCondVariance()<0) || (isnan(dPot->getCondVariance())) || (isinf(dPot->getCondVariance())))
+	{
+		scoreImprovement=-1;
+>>>>>>> Stashed changes
 	}
 
 	INTINTMAP* tSet = &evidenceManager->getTrainingSet();

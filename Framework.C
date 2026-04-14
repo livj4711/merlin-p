@@ -12,18 +12,10 @@
 
 #include "Potential.H"
 #include "SlimFactor.H"
-#include "LatticeStructure.H"
-
-#include "Vertex.H"
-#include "Graph.H"
 
 #include "FactorGraph.H"
-#include "FactorManager.H"
 #include "PotentialManager.H"
 #include "MetaMove.H"
-#include "MotifManager.H"
-#include "BFGSWrapperData.H"
-#include "BFGSWrapper.H"
 #include "MetaLearner.H"
 
 #include "Framework.H"
@@ -63,22 +55,17 @@ Error::ErrorCode Framework::init(int argc, char** argv)
 	bool moduleDefault = true;
 	bool hDefault = true;
 
-    int opt;
-    while ((opt = getopt(argc, argv, "o:k:d:v:l:p:r:c:h:f:q:")) != -1) //L opt gets assigned the return value of getopt, which is the option character or '?' on error
-    {
-        switch (opt)
-        {
-            case 'd': // expression file
-            {
-				dDefault=false;
-                Error::ErrorCode eCode = varManager.readVariables(optarg);
-                if (eCode != Error::SUCCESS)
-                {
-                    std::cerr << Error::getErrorString(eCode) << '\n';
-                    return eCode;
-                }
-
-                evManager.setVariableManager(&varManager);
+				eCode = evManager.loadEvidenceFromFile(optarg);
+				if(eCode != Error::SUCCESS)
+				{
+					cerr << Error::getErrorString(eCode) << endl;
+					return eCode;
+				}
+				metaLearner.setGlobalEvidenceManager(&evManager);
+				metaLearner.setVariableManager(&varManager);
+			
+				//strncpy(outFilePrefix, optarg, strlen(optarg) - 4);
+				//outFilePrefix[strlen(optarg)-4] = '\0';
 
                 eCode = evManager.loadEvidenceFromFile(optarg);
                 if (eCode != Error::SUCCESS)

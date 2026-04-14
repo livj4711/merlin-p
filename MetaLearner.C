@@ -542,7 +542,7 @@ MetaLearner::start(int f)
 					continue;
 				}
 
-				MetaMove* nextMove = getNextMove(currK, vID);
+				MetaMove* nextMove = getNextMove(maxNumRegs, vID);
 				if (nextMove == nullptr)
 				{
 					subiter++;
@@ -568,7 +568,7 @@ MetaLearner::start(int f)
 			}
 			iter++;
 			scorePremodule=currGlobalScore;
-			dumpAllGraphs(currK,f,iter);
+			dumpAllGraphs(maxNumRegs,f,iter);
 		}
 		moduleiter++;
 	}
@@ -834,7 +834,7 @@ MetaLearner::getPredictionError_CrossValid(int foldid)
 }
 
 MetaMove*
-MetaLearner::getNextMove(int currK, int vID)
+MetaLearner::getNextMove(int maxNumRegs, int vID)
 {
 	VSET& varSet=varManager->getVariableSet();
 	Variable* v = varSet[vID];
@@ -846,7 +846,7 @@ MetaLearner::getNextMove(int currK, int vID)
 
 	// If v already has the max number of parents, dont test adding another.
 	SlimFactor* dFactor = factorGraph->getFactorAt(vID);
-	if(dFactor->mergedMB.size() >= currK)
+	if(dFactor->mergedMB.size() >= maxNumRegs)
 	{
 		return nullptr;
 	}

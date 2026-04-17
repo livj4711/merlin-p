@@ -54,7 +54,7 @@ class MetaLearner
 	double getInitPLLScore();
 	double getInitPLLScore(int vId);
 	double getPLLScore();
-	double getInitPrior();
+	//L double getInitPrior(); //L unused?
 	double getEdgePrior(int tfID, int targetID);
 	int clearFoldSpecData();
 	int initEdgeSet();
@@ -84,7 +84,7 @@ class MetaLearner
 	map<string,int> edgeMap;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
-	char trueGraphFName[1024];
+	//L char trueGraphFName[1024];
 	map<int,double> finalScores;
 	bool preRandomizeSplit;
 	gsl_rng* rnd;

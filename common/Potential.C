@@ -40,18 +40,18 @@ Potential::getExpectation(map<int,Evidence*>* evidenceSet)
 double 
 Potential::evaluateProbabilityDensity(map<int,Evidence*>* evidMap)
 {
-	if(evidMap->find(factorID)==evidMap->end())
+	if(evidMap->find(factorID)==evidMap->end()) //L if the factor ID (gene ID) doesn't have an evidence assignment, skip
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorID << endl;
 		exit(-1);
 	}
 
-	double expectation = getExpectation(evidMap);
-	double norm = sqrt(2 * PI * variance);
+	double expectation = getExpectation(evidMap); //L mu
+	double norm = sqrt(2 * PI * variance); //L 1/sqrt(2*pi*sigma^2)
 	Evidence* factorEvid = (*evidMap)[factorID];
-	double x = factorEvid->getEvidVal();
-	double dev = (x - expectation) * (x - expectation) / (2 * variance);
+	double x = factorEvid->getEvidVal();  //L get the exact expr val for this gene in this training cell
+	double dev = (x - expectation) * (x - expectation) / (2 * variance); //L (x-mu)^2 / (2*sigma^2)
 	double eval = exp(-1.0 * dev);
 	double pval = eval / norm;
-	return pval;
+	return pval; 
 }

@@ -30,14 +30,14 @@ VariableManager::readVariables(const char* aFName)
 
 		if(strlen(buffer)<=0)
 		{
-			cout <<"Bad format" << endl;
+			cout <<"Error: gene expression header is empty" << endl; //L change to be more informative
 			return Error::VARSCHEMA_ERR;
 		}
 
-		char* tok=strtok(buffer,"\t");
-		int tokCnt=0;
+		char* tok=strtok(buffer,"\t");  //L split the header into tokens by tabs
+		int tokCnt=0;  //L will become variable id, so gene1 has ID 0, gene2 has ID
 
-		while(tok!=NULL)
+		while(tok!=NULL) //L loop through all gene names
 		{
 			Variable* var=new Variable;
 			var->setID(tokCnt);
@@ -45,7 +45,7 @@ VariableManager::readVariables(const char* aFName)
 			variableSet[tokCnt]=var;
 			
 			string varKey(tok);
-			varNameIDMap[varKey]=tokCnt;
+			varNameIDMap[varKey]=tokCnt;  //L create a name --> ID lookup
 			tokCnt++;
 			tok=strtok(NULL,"\t");
 		}

@@ -27,10 +27,10 @@
 MetaLearner::MetaLearner()
 {
 	restrictedFName[0]='\0';
-	trueGraphFName[0]='\0';
+	//L trueGraphFName[0]='\0'; 
 	preRandomizeSplit=false;
 	random=false;
-	lambda=0;
+	//L lambda=0; //L modulating this allows larger parent sets to get penalized, but this is never set
 	clusterThreshold=0.5;
 	specificFold=-1;
 	convThreshold=1e-3;
@@ -72,7 +72,7 @@ MetaLearner::initEdgePriorMeta_All() //L reverse of setPriorGraph_All...
 		map<string,map<string,double>*>* priorgraph = gIter->second; //L get the actual prior graph (edge information) for this prior graph
 		map<int,INTDBLMAP*>* edgeprior = new map<int,INTDBLMAP*>();
 		edgepriormap[gIter->first] = edgeprior; //L initialize a new empty graph into edgepriormap for this prior graph
-		initEdgePriorMeta(gIter->first,*priorgraph,*edgeprior); //L i edited to send  prior name as well. This initializes edgeprior as the "reverse" of priorgraph, which is keyed by the gene whose values are its regulators in the prior (which have edge weights)
+		initEdgePriorMeta(gIter->first,*priorgraph,*edgeprior); //L i edited to send  prior name as well. This initializes edgeprior as the "reverse" of priorgraph, which is keyed by the gene whose values are its regulators in the prior (which have edge weights). edge weights are absolute value, then aggregated across duplicate edges
 	}
 	return 0;
 }
@@ -132,12 +132,12 @@ MetaLearner::setBeta_Motif(double aval)
 	return 0;
 }
 
-int
-MetaLearner::setLambda(double l)
-{
-	lambda=l;
-	return 0;
-}
+// int
+// MetaLearner::setLambda(double l) //L never used
+// {
+// 	lambda=l;
+// 	return 0;
+// }
 
 int 
 MetaLearner::setConvergenceThreshold(double aVal)
@@ -218,6 +218,11 @@ int
 MetaLearner::setPriorGraph(const char* aFName, map<string,map<string,double>*>& priorGraph)
 {
 	ifstream inFile(aFName);
+    if (!inFile.is_open())
+    {
+        std::cerr << "Error: Prior file path incorrect or file cannot be opened: " << aFName << std::endl;
+    }
+
 	char buffer[1024];
 	while(inFile.good()) //L for each line (edge) in the prior graph file
 	{
@@ -380,7 +385,7 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 	for(map<string,int>::iterator rIter=restrictedVarList.begin();rIter!=restrictedVarList.end();rIter++) //L for each restricted regulator
 	{
 		int regId=varManager->getVarID(rIter->first.c_str());
-		if(regId==-1) //Lif regulator wasn't in expression matrix, skip
+		if(regId==-1) //L if regulator wasn't in expression matrix, skip
 		{
 			continue;
 		}
@@ -411,7 +416,7 @@ MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,do
 			if(edgePriorGene->find(regId)==edgePriorGene->end()) //L if this regulator is not already a regulator of this target in edgePriors, add it with the edge weight as its value
 			{
 				//(*edgePriorGene)[regId]=vIter->second;
-				(*edgePriorGene)[regId]=ewt; //l * just points to this gene key in edgePriors
+				(*edgePriorGene)[regId]=ewt; //L * just points to this gene key in edgePriors
 			}
 			else //L else if this regulator is already a regulator of this target in edgePriors, add the edge weight to the existing value (in case there are multiple edges from this regulator to this target in the prior graph?)
 			{
@@ -457,15 +462,15 @@ MetaLearner::doCrossValidation(int foldCnt)
 		}
 
 		vector<int> regIDs;
-		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++)
+		for (map<string,int>::iterator iter = restrictedVarList.begin(); iter != restrictedVarList.end(); iter++) //L for each restricted reg,
 		{
-			int regID = varManager->getVarID(iter->first.c_str());
-			regIDs.push_back(regID);
+			int regID = varManager->getVarID(iter->first.c_str()); //L get reg's variable ID from varManager
+			regIDs.push_back(regID); //L add this regID to list of regIDs
 		}
 
-		potManager->init(evidenceManager, random, regIDs);
+		potManager->init(evidenceManager, random, regIDs); //L initialize globalMeans and globalCovariances. globalMeans = a vector of the mean gene expression across training cells, globalCovariances = a matrix of covariances between each pair of genes across training cells: sum((x_reg - mu_reg)(x_gene - mu_gene)) / num_cells - 1 
 
-		factorGraph = new FactorGraph(varManager);
+		factorGraph = new FactorGraph(varManager); //L create a factor graph where each gene is its own singleton factor (slimFactor)
 
 		//L Prepare output directory for this fold
 		char outputDir[1024];
@@ -498,29 +503,29 @@ MetaLearner::start(int f)
 	gsl_rng_set(rnd,rseed);
 	cout << "Random seed: " << rseed << endl;
 	initEdgePriorMeta_All(); //L initialize "edgeprior" for each prior network, which is the "reverse" of priorgraph (key=genes, values=regulators/edgewt dict)
-	initEdgeSet();
-	initPhysicalDegree();
+	initEdgeSet(); //L Initialize an edge set of ALL possible directed edges from restricted regulators -> module genes. Also set each SlimFactor's (singleton gene’s) potential to be a new Potential 
+	initPhysicalDegree(); //L across all prior networks, counts the number of edges from each enriched regulator to any gene in any module (regulatorModuleOutdegree), and the number of edges from any enriched regulator to genes in each module (moduleIndegree)
 
-	if(strlen(trueGraphFName)!=0)
-	{
-		return 0;
-	}
+	// if(strlen(trueGraphFName)!=0) //L dead functinality to evaluate performance of a given network
+	// {
+	// 	return 0;
+	// }
 
 	VSET& varSet=varManager->getVariableSet();
 
 	for (VSET_ITER vIter=varSet.begin(); vIter != varSet.end(); vIter++)
 	{
 		Variable *var = vIter->second;
-		variableStatus[var->getName()] = 0;
+		variableStatus[var->getName()] = 0; //L set initial status to 0; tracks num iters that we found a parent for this gene
 	}
 
-	double currGlobalScore=getInitPLLScore();
-	double initScore=getInitPrior();
-	int showid=0;
-	int moduleiter=0;
-	bool notConvergedTop=true;
-	while(moduleiter<1 && notConvergedTop)
-	{
+	double currGlobalScore=getInitPLLScore(); //L get intial PLL score for the entire network with no edges. also initalize currPLL = { gene_ID : PLL + prior }
+	//L double initScore=getInitPrior(); //L get the initial prior score for the entire network with no edges. this is the same as ∑_i varNeighborhoodPrior[i]
+	//L int showid=0;
+	//L int moduleiter=0;
+	//L bool notConvergedTop=true;
+	//L while(moduleiter<1 && notConvergedTop)
+	//L {
 		int iter=0;
 		bool notConverged=true;
 		while(notConverged && iter<50)
@@ -537,7 +542,7 @@ MetaLearner::start(int f)
 				int lastiter = variableStatus[v->getName()];
 				if((iter - lastiter) >= 5)
 				{
-					cout <<"Skipping " << v->getName() << endl;
+					cout <<"Skipping gene " << v->getName() << "; no parents added in the last 5 iters." << endl; //L clarify print statement
 					subiter++;
 					continue;
 				}
@@ -555,7 +560,7 @@ MetaLearner::start(int f)
 				currGlobalScore=getPLLScore();
 
 				subiter++;
-				showid++;
+				//L showid++;
 				attemptedMoves++;
 			}
 			if((currGlobalScore-scorePremodule)<=convThreshold)
@@ -570,8 +575,8 @@ MetaLearner::start(int f)
 			scorePremodule=currGlobalScore;
 			dumpAllGraphs(maxNumRegs,f,iter);
 		}
-		moduleiter++;
-	}
+		//L moduleiter++;
+	//L}
 	cout <<"Final Score " << currGlobalScore << endl;
 	finalScores[f]=currGlobalScore;
 	return 0;
@@ -579,21 +584,21 @@ MetaLearner::start(int f)
 
 double
 MetaLearner::getInitPLLScore()
-{
+{ //L get the initial pseudo-log likelihood score before any learning
 	double initScore=0;
 	VSET& varSet=varManager->getVariableSet();
 	//Initially we just sum up the marginal likelihoods
 	currPLL=new INTDBLMAP;
-	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++)
+	for(VSET_ITER vIter=varSet.begin();vIter!=varSet.end();vIter++) //L for each gene variable
 	{
-		if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end())
+		if(varNeighborhoodPrior.find(vIter->first)==varNeighborhoodPrior.end()) //L if gene wasn't assigned a module ID (and therefore not added to varNeighborhoodPrior), skip it
 		{
 			continue;
 		}
 		Variable* var=varSet[vIter->first];
-		double newPLL_s=getInitPLLScore(vIter->first);
+		double newPLL_s=getInitPLLScore(vIter->first); //L get the initial pseudo-log likelihood score for this gene given its current singleton factor (no parents yet): SUM(log(p(Xi = xi))) over all training cells, where xi ~ Normal(mu_genei, sigma2_genei)
 		double priorScore=varNeighborhoodPrior[vIter->first];
-		(*currPLL)[vIter->first]=newPLL_s+priorScore;
+		(*currPLL)[vIter->first]=newPLL_s+priorScore; //L a gene's varNeighborhoodPrior is more negative the more regulators it has in the prior networks. here the prior score is PENALIZING the gene for having no parents in our initial network, since the prior networks suggest that it does.
 		initScore=initScore+(*currPLL)[vIter->first];
 	}
 	return initScore;
@@ -614,22 +619,22 @@ MetaLearner::getPLLScore()
 	return gScore;
 }
 
-double 
-MetaLearner::getInitPrior()
-{
-	double graphPrior=0;
-	double edgePresence=1/(1+exp(-1*beta1));
-	for(map<string,double>::iterator aIter=edgePresenceProb.begin();aIter!=edgePresenceProb.end();aIter++)
-	{
-		//graphPrior=graphPrior+log(1-edgePresence);
-		graphPrior=graphPrior+log(1-aIter->second);
-		if(isinf(graphPrior)|| isnan(graphPrior))
-		{
-			cout <<"Graph prior is "<< graphPrior << " after " << aIter->first << " for " << aIter->second << endl;
-		}
-	}
-	return graphPrior;
-}
+// double 
+// MetaLearner::getInitPrior() //L unused?
+// {
+// 	double graphPrior=0;
+// 	double edgePresence=1/(1+exp(-1*beta1)); //L edge presence prob for an edge not present in any prior network
+// 	for(map<string,double>::iterator aIter=edgePresenceProb.begin();aIter!=edgePresenceProb.end();aIter++) //L for each possible directed reg-gene edge
+// 	{
+// 		//graphPrior=graphPrior+log(1-edgePresence);
+// 		graphPrior=graphPrior+log(1-aIter->second); //L edge presence prob for this edge, based on prior networks. this is the same as ∑_i varNeighborhoodPrior[i]
+// 		if(isinf(graphPrior)|| isnan(graphPrior))
+// 		{
+// 			cout <<"Graph prior is "<< graphPrior << " after " << aIter->first << " for " << aIter->second << endl;
+// 		}
+// 	}
+// 	return graphPrior;
+// }
 
 int
 MetaLearner::clearFoldSpecData()
@@ -713,7 +718,7 @@ MetaLearner::initEdgeSet()
 	for(int f=0;f<factorGraph->getFactorCnt();f++)
 	{
 		SlimFactor* sFactor=factorGraph->getFactorAt(f);
-		sFactor->potFunc=potManager->createPotential(sFactor->fId);
+		sFactor->potFunc=potManager->createPotential(sFactor->fId); //L set each SlimFactor's potential to be a new Potential which holds the gene's varID (fId), mean, variance, and an empty "weights" map
 	}
 
 	return 0;
@@ -965,25 +970,26 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, st
 
 	double varCnt = (double)parentIDs.size() + 1;
 	double paramCnt = 2 * varCnt + varCnt * (varCnt - 1) / 2;
-	double complexityPrior = -lambda * paramCnt * log(datasize);
+	//L double complexityPrior = -lambda * paramCnt * log(datasize);
 
-	mbScore = condLL + complexityPrior + currPrior;
+	//L mbScore = condLL + complexityPrior + currPrior; //L remove lambda influence, which is always 0
+	mbScore = condLL + currPrior;
 	scoreImprovement = mbScore - (*currPLL)[factorID];
 }
 
 double
 MetaLearner::getInitPLLScore(int vId)
-{
+{ //L get initial pseudo-log likelihood score for the given gene (singleton factor, no parents) before learning network
 	SlimFactor* sFactor=factorGraph->getFactorAt(vId);
-	Potential* sPot=sFactor->potFunc;
+	Potential* sPot=sFactor->potFunc; //L Potential holds the gene's ID, mean (across training cells), variance (across trainig cells), and an empty weight vector
 
 	double pll=0; 
 
-	INTINTMAP* tSet=&evidenceManager->getTrainingSet();
-	for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++)
+	INTINTMAP* tSet=&evidenceManager->getTrainingSet(); //L tSet is a map of { training_cell_ID : dummy_value } 
+	for(INTINTMAP_ITER eIter=tSet->begin();eIter!=tSet->end();eIter++) //L for each training cell
 	{
-		EMAP* evidMap=evidenceManager->getEvidenceAt(eIter->first);
-		double pval=sPot->evaluateProbabilityDensity(evidMap);
+		EMAP* evidMap=evidenceManager->getEvidenceAt(eIter->first); //L get the map of gene expression values for this training cell { gene_ID : Evidence object }
+		double pval=sPot->evaluateProbabilityDensity(evidMap); //L evaluate the pdf for this gene of this training cell: get fXi(xi) where Xi ~ Normal(mu_genei, sigma2_genei)
 		if(isnan(pval))
 		{
 			cout <<"Pval is nan for datapoint " << eIter->first << endl;
@@ -995,10 +1001,10 @@ MetaLearner::getInitPLLScore(int vId)
 		pll += log(pval);
 	}
 
-	// The initial graph has no edges, meaning is variable is univariate
+	// The initial graph has no edges, meaning this variable is univariate
 	// gaussian, with just 2 params (mean, variance).
-	double complexityPrior = lambda * 2 * log(tSet->size());
-	pll -= complexityPrior;
+	//L double complexityPrior = lambda * 2 * log(tSet->size()); //L lambda unchanged from 0
+	//L pll -= complexityPrior; //L lambda unchanged from 0
 	return pll;
 }
 
@@ -1114,44 +1120,44 @@ MetaLearner::dumpAllGraphs(int maxNumRegs,int foldid,int iter)
 int
 MetaLearner::initPhysicalDegree()
 {
-	for(map<int,map<string,int>*>::iterator mIter=moduleGeneSet.begin();mIter!=moduleGeneSet.end();mIter++)
+	for(map<int,map<string,int>*>::iterator mIter=moduleGeneSet.begin();mIter!=moduleGeneSet.end();mIter++) //L for each module
 	{
 		map<string,int>* indegree=NULL;
-		map<string,map<string,int>*> innet;
-		map<string,int>* geneSet=mIter->second;
-		for(map<string,map<string,map<string,double>*>*>::iterator gpIter=priorgraphmap.begin();gpIter!=priorgraphmap.end();gpIter++)
+		map<string,map<string,int>*> innet; //L initalize a map of enriched TFs -> their set of target genes in this module, across all prior networks
+		map<string,int>* geneSet=mIter->second; //L set of genes in this module
+		for(map<string,map<string,map<string,double>*>*>::iterator gpIter=priorgraphmap.begin();gpIter!=priorgraphmap.end();gpIter++) //L for each prior network
 		{
 			map<string,int>enrichedTFs;
-			map<string,map<string,double>*>* priorgraph = gpIter->second;
+			map<string,map<string,double>*>* priorgraph = gpIter->second; //L this prior graph's map regulator -> (target -> edgewt)
 			getEnrichedTFs(enrichedTFs,geneSet,*priorgraph);
-			for(map<string,int>::iterator tfIter=enrichedTFs.begin();tfIter!=enrichedTFs.end();tfIter++)
+			for(map<string,int>::iterator tfIter=enrichedTFs.begin();tfIter!=enrichedTFs.end();tfIter++) //L for each enriched TF in this prior network
 			{
-				map<string,double>* motiftgts=(*priorgraph)[tfIter->first];
+				map<string,double>* motiftgts=(*priorgraph)[tfIter->first]; //L get this enriched TF's targets in this prior network
 				map<string,int>* ttgts;
-				if (innet.find(tfIter->first) == innet.end())
+				if (innet.find(tfIter->first) == innet.end()) //L if this enriched TF is not already in innet, add it with an empty set of targets
 				{
 					ttgts = new map<string,int>();
 					innet[tfIter->first] = ttgts;
 				}
-				else
+				else //L else if this enriched TF is already in innet, get its existing set of targets
 				{
 					ttgts = innet[tfIter->first];
 				}
-				for(map<string,double>::iterator gIter=motiftgts->begin();gIter!=motiftgts->end();gIter++)
+				for(map<string,double>::iterator gIter=motiftgts->begin();gIter!=motiftgts->end();gIter++) //L for each target of this TF in this prior network
 				{
-					if(geneSet->find(gIter->first)==geneSet->end())
+					if(geneSet->find(gIter->first)==geneSet->end()) //L if this target gene is not in the module, skip
 					{
 						continue;
 					}
-					(*ttgts)[gIter->first] = 0;
+					(*ttgts)[gIter->first] = 0; //L add this target gene to the set of targets of this enriched TF (dummy value 0)
 				}
 			}
 		}
-		for (map<string,map<string,int>*>::iterator tItr=innet.begin();tItr!=innet.end();tItr++)
+		for (map<string,map<string,int>*>::iterator tItr=innet.begin();tItr!=innet.end();tItr++) //L for each enriched TF across all prior networks
 		{
 			string tf = tItr->first;
 			map<string,int>* ttgts = tItr->second;
-			if (ttgts->size() == 0)
+			if (ttgts->size() == 0) //L if the enriched TF has no targets in the module, skip
 			{
 				continue;
 			}
@@ -1159,23 +1165,23 @@ MetaLearner::initPhysicalDegree()
 			{
 				indegree=new map<string,int>;
 			}
-			(*indegree)[tf] = ttgts->size();
+			(*indegree)[tf] = ttgts->size(); //L set the indegree of this enriched TF to be the number of its target genes in this module (across all prior networks)
 		}
 		
-		if(indegree!=NULL)
+		if(indegree!=NULL) //L if we found any enriched TFs for this module across all prior networks
 		{
-			moduleIndegree[mIter->first]=indegree;
-			cout <<"Physical_indegree for module " << mIter->first << endl;
-			for(map<string,int>::iterator dIter=indegree->begin();dIter!=indegree->end();dIter++)
+			moduleIndegree[mIter->first]=indegree; //L track the number of edges from each enriched TF to genes in this module across all prior networks
+			cout << "Module " << mIter->first << ": " << geneSet->size() << " genes, " << indegree->size() << " enriched TFs" << endl; //L clarify print statement
+			for(map<string,int>::iterator dIter=indegree->begin();dIter!=indegree->end();dIter++) //L for each enriched TF for this module,  and also track the total number of edges from this TF to any gene in any module across all prior networks (regulatorModuleOutdegree)
 			{
-				cout << dIter->first <<"\t" << dIter->second << endl;
-				if(regulatorModuleOutdegree.find(dIter->first)==regulatorModuleOutdegree.end())
+				cout << " Enriched TF " << dIter->first << ": " << dIter->second << " target genes in this module across prior networks" <<endl; //L more informative print statement. print the number of edges from this TF to genes in this module across all prior networks,
+				if(regulatorModuleOutdegree.find(dIter->first)==regulatorModuleOutdegree.end()) //L if this enriched TF is not already in regulatorModuleOutdegree, add it with its number of target genes in this module across all prior networks as the outdegree
 				{
 					regulatorModuleOutdegree[dIter->first]=dIter->second;
 				}
 				else
 				{
-					regulatorModuleOutdegree[dIter->first]=regulatorModuleOutdegree[dIter->first]+dIter->second;
+					regulatorModuleOutdegree[dIter->first]=regulatorModuleOutdegree[dIter->first]+dIter->second; //L sum across all  modules
 				}
 			}
 		}
@@ -1187,42 +1193,42 @@ int
 MetaLearner::getEnrichedTFs(map<string,int>& tfSet,map<string,int>* genes,map<string,map<string,double>*>& edgeSet)
 {
 	VSET& varSet=varManager->getVariableSet();
-	int total=varSet.size();
-	int k=genes->size();
-	HyperGeomPval hgp;
-	for(map<string,map<string,double>*>::iterator fIter=edgeSet.begin();fIter!=edgeSet.end();fIter++)
+	int total=varSet.size(); //L number of total genes in the dataset
+	int k=genes->size(); //L number of genes in this module
+	HyperGeomPval hgp; //L class to return the p-val of observing k or more successes in n draws from a population of size N with K successes, without replacement
+	for(map<string,map<string,double>*>::iterator fIter=edgeSet.begin();fIter!=edgeSet.end();fIter++) //L for each regulator in this prior network
 	{
-		int vID=varManager->getVarID(fIter->first.c_str());
-		if(vID<0)
+		int uID=varManager->getVarID(fIter->first.c_str()); //L get this reg's varID. I change to uID, to differentiate it from later when we assign vId with the gene ID
+		if(uID<0) //L if this regulator is not in the expr dataset, skip
 		{
 			continue;
 		}
-		map<string,double>* tgtSet=fIter->second;
+		map<string,double>* tgtSet=fIter->second; //L set of targets of this reg in this prior network
 		//int n=tgtSet->size();
 		int n=0;
 		int hit=0;
-		for(map<string,double>::iterator gIter=tgtSet->begin();gIter!=tgtSet->end();gIter++)
+		for(map<string,double>::iterator gIter=tgtSet->begin();gIter!=tgtSet->end();gIter++) //L for each target gene of this reg
 		//for(map<string,int>::iterator gIter=genes->begin();gIter!=genes->end();gIter++)
 		{
 			
-			int vID=varManager->getVarID(gIter->first.c_str());
-                        if(vID<0)
-                        {
-                                continue;
-                        }
-                        n++;
+			int vID=varManager->getVarID(gIter->first.c_str()); //L get this target's varID
+            if(vID<0) //L if this gene is not in the expr dataset, skip
+            {
+                continue;
+            }
+            n++; //L accumulates number of genes this regulator regulates in the prior
 			//if(tgtSet->find(gIter->first)==tgtSet->end())
-                	if(genes->find(gIter->first)==genes->end())
+            if(genes->find(gIter->first)==genes->end()) //L if this target gene is not in the module, skip
 			{
 				continue;
 			}
-			hit++;
+			hit++; //L gene is a target of the regulator AND in the module
 		}
-		double enpval=hgp.getOverRepPval(k,hit,n,total-n);
-		if(enpval<0.05 && hit>4)
+		double enpval=hgp.getOverRepPval(k,hit,n,total-n); //L get the p-val of observing hit or more successes (targets in the module) in n draws (total targets of this reg in the prior) from a population of size total with k successes (genes in the module)
+		if(enpval<0.05 && hit>4) //L if this reg is sig enriched for targets in the module, and has more than 4 targets in the module (to avoid very small hit counts), then we consider it an enriched regulator of this module
 		//if(hit>0)
 		{
-			tfSet[fIter->first]=hit;
+			tfSet[fIter->first]=hit; //L add this reg to the set of enriched regs for this module, with value being the number of targets it has in the module
 		}
 	}
 	return 0;

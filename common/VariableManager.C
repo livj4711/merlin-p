@@ -53,7 +53,7 @@ VariableManager::readVariables(const char* aFName)
 
 	inFile.close();
 
-	cout <<"Read information about " << variableSet.size() << " genes " << endl; //L say genes instead of variables
+	cout <<"Number of genes read: " << variableSet.size() << endl; //L say genes instead of variables
 
 	return Error::SUCCESS;
 }

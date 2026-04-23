@@ -153,7 +153,7 @@ PotentialManager::createPotential(int factorID)
 
 double
 PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot)
-{
+{ //L conditional log-likelihood: log p(X_{v} ∣ U), where U = {X_{u1}, ..., X_{uk}}
 	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
 	INTDBLMAP weights;
@@ -163,20 +163,20 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Start by collecting a matrix of all the covariances of the conditioning variables,
 	// and the marginal variances of the conditioning variables.
 
-	Matrix *parentCovariances = new Matrix(parentCount, parentCount);
-	Matrix *parentMarginalVariances = new Matrix(1, parentCount);
+	Matrix *parentCovariances = new Matrix(parentCount, parentCount); //L Σ_{UU}
+	Matrix *parentMarginalVariances = new Matrix(1, parentCount); //L  Σ_{vU}
 
-	for (int i = 0; i < parentCount; i++)
+	for (int i = 0; i < parentCount; i++) //L for each parent of this gene (factorID)
 	{
 		int varAID = parentIDs[i];
-		double factorCovariance = globalCovariances->getValue(factorID, varAID);
+		double factorCovariance = globalCovariances->getValue(factorID, varAID); //L covariance(v, Ui)
 		parentMarginalVariances->setValue(factorCovariance, 0, i);
 
 		for (int j = i; j < parentCount; j++)
 		{
 			int varBID = parentIDs[j];
-			double covariance = globalCovariances->getValue(varAID, varBID);
-			parentCovariances->setValue(covariance, i, j);
+			double covariance = globalCovariances->getValue(varAID, varBID); //L covariance(Ui, Uj)
+			parentCovariances->setValue(covariance, i, j); 
 			parentCovariances->setValue(covariance, j, i);
 		}
 	}
@@ -184,18 +184,18 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Compute the final values for the variance of the conditional gaussian,
 	// plus the regression parameters for the mean of the conditional guassian.
 
-	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm);
-	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse);
+	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm); //L Σ_{UU}^{-1}. A^{-1} such that AA^{-1} = A^{-1}A = I
+	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse); //L 1xparentCount matrix: β^T =  Σ_{vU}Σ_{UU}^{-1}, linear-Gaussian weights. Regression coefficient vector for predicting the target variable from its parents.
 
 	for (int i = 0; i < parentCount; i++)
 	{
 		int vID = parentIDs[i];
-		double aVal = prod->getValue(0, i);
-		double bVal = parentMarginalVariances->getValue(0, i);
+		double aVal = prod->getValue(0, i); //L β_{Ui}^T
+		double bVal = parentMarginalVariances->getValue(0, i); //L covariance(v, Ui)
 		double cVal = globalMeans[vID];
-		weights[vID] = aVal;
-		variance -= aVal * bVal;
-		bias -= cVal * aVal;
+		weights[vID] = aVal; 
+		variance -= aVal * bVal; //L β_{Ui}^T * covariance(v, Ui)
+		bias -= cVal * aVal; //L mu_Ui * β_{Ui}^T
 	}
 
 	delete prod;
@@ -216,8 +216,8 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	}
 
 	// Now that the conditional Gaussian params are computed, we can create the potential.
-	*newPot = new Potential(factorID, variance, bias, weights);
+	*newPot = new Potential(factorID, variance, bias, weights); //L create new potential with new values
 
 	// Finally, compute the conditional log likelihood.
-	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance));
+	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance)); //L The optimization (using variance instead of determinants) is standard linear algebra (Schur complement)
 }

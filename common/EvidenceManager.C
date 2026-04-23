@@ -78,7 +78,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 
 	inFile.close();
 
-	cout <<"Read " << evidenceSet.size() << " different cells " << endl; //L say cells instead of datapoints
+	cout <<"Number of samples read: " << evidenceSet.size() << endl; //L say samples instead of datapoints
 
 	return Error::SUCCESS;
 }

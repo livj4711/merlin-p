@@ -37,21 +37,21 @@ Potential::getExpectation(map<int,Evidence*>* evidenceSet)
 	return mean + bias;
 }
 
-double 
+double
 Potential::evaluateProbabilityDensity(map<int,Evidence*>* evidMap)
 {
-	if(evidMap->find(factorID)==evidMap->end()) 
+	if(evidMap->find(factorID)==evidMap->end())
 	{
 		cerr <<"Fatal error! No variable assignment for " << factorID << endl;
 		exit(-1);
 	}
 
-	double expectation = getExpectation(evidMap); 
-	double norm = sqrt(2 * PI * variance); 
+	double expectation = getExpectation(evidMap);
+	double norm = sqrt(2 * PI * variance);
 	Evidence* factorEvid = (*evidMap)[factorID];
-	double x = factorEvid->getEvidVal();  
-	double dev = (x - expectation) * (x - expectation) / (2 * variance); 
+	double x = factorEvid->getEvidVal();
+	double dev = (x - expectation) * (x - expectation) / (2 * variance);
 	double eval = exp(-1.0 * dev);
 	double pval = eval / norm;
-	return pval; 
+	return pval;
 }

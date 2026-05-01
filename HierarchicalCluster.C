@@ -31,7 +31,7 @@ HierarchicalCluster::addNode(HierarchicalClusterNode* node)
 	nodeSet[node->nodeName] = node;
 }
 
-int 
+int
 HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshold, Matrix* correlationDistances)
 {
 	// currNodeSet holds the subset of nodes in the dendrogram that currently have no parent.

@@ -39,7 +39,7 @@ Framework::init(int argc, char** argv)
 
 	int optret;
 	opterr=1;
- 
+
 	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:"))!=-1)
 	{
 		switch(optret)
@@ -62,13 +62,13 @@ Framework::init(int argc, char** argv)
 				}
 				metaLearner.setGlobalEvidenceManager(&evManager);
 				metaLearner.setVariableManager(&varManager);
-			
+
 				break;
 			}
 			case 'o': // output file - predictions
 			{
 				oDefault=false;
-				metaLearner.setOutputDirName(optarg);	
+				metaLearner.setOutputDirName(optarg);
 				break;
 			}
 
@@ -83,7 +83,7 @@ Framework::init(int argc, char** argv)
 			{
 				cvDefault=false;
 				cvCnt = atoi(optarg);
-				if(cvCnt <= 0) 
+				if(cvCnt <= 0)
 				{
 					cerr << "Cross validation count should be greater than zero.\n";
 					return Error::UNKNOWN;
@@ -169,7 +169,7 @@ Framework::init(int argc, char** argv)
 	}
 	if(cvDefault)
 	{
-		cvCnt=1;	
+		cvCnt=1;
 	}
 	if(hDefault)
 	{
@@ -191,7 +191,7 @@ Framework::init(int argc, char** argv)
 	return Error::SUCCESS;
 }
 
-int 
+int
 Framework::start()
 {
 	metaLearner.doCrossValidation(cvCnt);

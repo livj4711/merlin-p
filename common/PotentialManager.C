@@ -51,11 +51,11 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 	globalCovariances->setAllValues(-1);
 
 	// Stores the deviations from the mean for each variable and sample.
-	vector<double> deviations(varCount * sampleCount, 0); 
+	vector<double> deviations(varCount * sampleCount, 0);
 
 	// Copy all the samples into the data matrix
 	int sampleIndex = 0;
-	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++) 
+	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++)
 	{
 		EMAP* evidMap=NULL;
 		if(randomData)
@@ -64,14 +64,14 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 		}
 		else
 		{
-			evidMap=evMgr->getEvidenceAt(eIter->first); 
+			evidMap=evMgr->getEvidenceAt(eIter->first);
 		}
-		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++) 
+		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++)
 		{
 			int vId = vIter->first;
 			Evidence* evid = vIter->second;
 			double val = evid->getEvidVal();
-			deviations[vId * sampleCount + sampleIndex] = val; 
+			deviations[vId * sampleCount + sampleIndex] = val;
 		}
 		sampleIndex++;
 	}
@@ -82,56 +82,56 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 		double sampleSum = 0;
 		for(int j = 0; j < sampleCount; j++)
 		{
-			sampleSum += deviations[i * sampleCount + j]; 
+			sampleSum += deviations[i * sampleCount + j];
 		}
-		globalMeans.push_back(sampleSum / sampleCount); 
+		globalMeans.push_back(sampleSum / sampleCount);
 	}
 
 	// Finally, use the means to pre-center the data
-	for (int i = 0; i < trainEvidSet.size(); i++) 
+	for (int i = 0; i < trainEvidSet.size(); i++)
 	{
-		for (int j = 0; j < varCount; j++) 
+		for (int j = 0; j < varCount; j++)
 		{
-			deviations[j * sampleCount + i] -= globalMeans[j]; 
+			deviations[j * sampleCount + i] -= globalMeans[j];
 		}
 	}
 
-	int norm = sampleCount - 1; 
+	int norm = sampleCount - 1;
 
 	// Set covariances along the diagonal.
-	for (int i = 0; i < varCount; i++) 
+	for (int i = 0; i < varCount; i++)
 	{
-		double ssd = 0.001; 
+		double ssd = 0.001;
 		for (int j = 0; j < sampleCount; j++)
 		{
-			double dev = deviations[i * sampleCount + j]; 
-			ssd += dev * dev; 
+			double dev = deviations[i * sampleCount + j];
+			ssd += dev * dev;
 		}
 		globalCovariances->setValue(ssd / norm, i, i);
 	}
 
 	// Set covariances between regulators and all other variables.
-	for (int i = 0; i < varIDs.size(); i++) 
+	for (int i = 0; i < varIDs.size(); i++)
 	{
-		int regID = varIDs[i]; 
-		for (int j = 0; j < varCount; j++) 
+		int regID = varIDs[i];
+		for (int j = 0; j < varCount; j++)
 		{
-			if (regID == j) 
+			if (regID == j)
 			{
 				continue;
 			}
 
 			double ssd = 0;
-			for (int k = 0; k < sampleCount; k++) 
+			for (int k = 0; k < sampleCount; k++)
 			{
-				double devI = deviations[regID * sampleCount + k]; 
-				double devJ = deviations[j * sampleCount + k]; 
+				double devI = deviations[regID * sampleCount + k];
+				double devJ = deviations[j * sampleCount + k];
 				ssd += devI * devJ;
 			}
 
-			double covariance = ssd / norm; 
-			globalCovariances->setValue(covariance, regID, j); 
-			globalCovariances->setValue(covariance, j, regID); 
+			double covariance = ssd / norm;
+			globalCovariances->setValue(covariance, regID, j);
+			globalCovariances->setValue(covariance, j, regID);
 		}
 	}
 
@@ -145,7 +145,7 @@ Potential*
 PotentialManager::createPotential(int factorID)
 {
 	int varCount = globalMeans.size();
-	double variance = globalCovariances->getValue(factorID, factorID); 
+	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
 	INTDBLMAP weights;
 	return new Potential(factorID, variance, bias, weights);
@@ -153,7 +153,7 @@ PotentialManager::createPotential(int factorID)
 
 double
 PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot)
-{ 
+{
 	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
 	INTDBLMAP weights;
@@ -163,20 +163,20 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Start by collecting a matrix of all the covariances of the conditioning variables,
 	// and the marginal variances of the conditioning variables.
 
-	Matrix *parentCovariances = new Matrix(parentCount, parentCount); 
-	Matrix *parentMarginalVariances = new Matrix(1, parentCount); 
+	Matrix *parentCovariances = new Matrix(parentCount, parentCount);
+	Matrix *parentMarginalVariances = new Matrix(1, parentCount);
 
-	for (int i = 0; i < parentCount; i++) 
+	for (int i = 0; i < parentCount; i++)
 	{
 		int varAID = parentIDs[i];
-		double factorCovariance = globalCovariances->getValue(factorID, varAID); 
+		double factorCovariance = globalCovariances->getValue(factorID, varAID);
 		parentMarginalVariances->setValue(factorCovariance, 0, i);
 
 		for (int j = i; j < parentCount; j++)
 		{
 			int varBID = parentIDs[j];
-			double covariance = globalCovariances->getValue(varAID, varBID); 
-			parentCovariances->setValue(covariance, i, j); 
+			double covariance = globalCovariances->getValue(varAID, varBID);
+			parentCovariances->setValue(covariance, i, j);
 			parentCovariances->setValue(covariance, j, i);
 		}
 	}
@@ -184,18 +184,18 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Compute the final values for the variance of the conditional gaussian,
 	// plus the regression parameters for the mean of the conditional guassian.
 
-	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm); 
-	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse); 
+	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm);
+	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse);
 
 	for (int i = 0; i < parentCount; i++)
 	{
 		int vID = parentIDs[i];
 		double aVal = prod->getValue(0, i);
-		double bVal = parentMarginalVariances->getValue(0, i); 
+		double bVal = parentMarginalVariances->getValue(0, i);
 		double cVal = globalMeans[vID];
-		weights[vID] = aVal; 
-		variance -= aVal * bVal; 
-		bias -= cVal * aVal; 
+		weights[vID] = aVal;
+		variance -= aVal * bVal;
+		bias -= cVal * aVal;
 	}
 
 	delete prod;
@@ -216,7 +216,7 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	}
 
 	// Now that the conditional Gaussian params are computed, we can create the potential.
-	*newPot = new Potential(factorID, variance, bias, weights); 
+	*newPot = new Potential(factorID, variance, bias, weights);
 
 	// Finally, compute the conditional log likelihood.
 	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance));

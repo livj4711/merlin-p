@@ -23,7 +23,7 @@ VariableManager::readVariables(const char* aFName)
 	ifstream inFile(aFName);
 	char buffer[400000];
 
-	if(inFile.good()) 
+	if(inFile.good())
 	{
 		inFile.getline(buffer,400000);
 
@@ -33,18 +33,18 @@ VariableManager::readVariables(const char* aFName)
 			return Error::VARSCHEMA_ERR;
 		}
 
-		char* tok=strtok(buffer,"\t"); 
-		int tokCnt=0;  
+		char* tok=strtok(buffer,"\t");
+		int tokCnt=0;
 
-		while(tok!=NULL) 
+		while(tok!=NULL)
 		{
 			Variable* var=new Variable;
 			var->setID(tokCnt);
 			var->setName(tok);
 			variableSet[tokCnt]=var;
-			
+
 			string varKey(tok);
-			varNameIDMap[varKey]=tokCnt; 
+			varNameIDMap[varKey]=tokCnt;
 			tokCnt++;
 			tok=strtok(NULL,"\t");
 		}
@@ -52,7 +52,7 @@ VariableManager::readVariables(const char* aFName)
 
 	inFile.close();
 
-	cout <<"Number of genes read: " << variableSet.size() << endl; 
+	cout <<"Number of genes read: " << variableSet.size() << endl;
 
 	return Error::SUCCESS;
 }
@@ -69,21 +69,21 @@ VariableManager::getVarID(const char* varName)
 	return vId;
 }
 
-bool 
+bool
 VariableManager::isValid(int varID,int varVal)
 {
 	Variable* rVar=variableSet[varID];
 	return rVar->isValidValue(varVal);
 }
 
-map<int,Variable*>& 
+map<int,Variable*>&
 VariableManager::getVariableSet()
 {
 	return variableSet;
 }
 
 
-Variable* 
+Variable*
 VariableManager::getVariableAt(int vId)
 {
 	if(variableSet.find(vId)==variableSet.end())

@@ -49,7 +49,7 @@ class MetaLearner
 	map <string,double> betamap;
 	map <string,map<int,INTDBLMAP*>*> edgepriormap;
 	map <string,map<string,map<string,double>*>*> priorgraphmap;
-		
+
 	double getInitPLLScore();
 	double getInitPLLScore(int vId);
 	double getPLLScore();

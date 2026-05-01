@@ -1,6 +1,6 @@
 What is MERLIN?
 ---------------
-Modular regulatory network learning with per gene information (MERLIN) is a network inference method that tries to infer a more accurate regulatory network by incorporating a modularity constraint. 
+Modular regulatory network learning with per gene information (MERLIN) is a network inference method that tries to infer a more accurate regulatory network by incorporating a modularity constraint.
 
 For more information on the method, please refer to the original publication:
 > **Integrated Module and Gene-Specific Regulatory Inference Implicates Upstream Signaling Networks**

@@ -55,7 +55,7 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 
 	// Copy all the samples into the data matrix
 	int sampleIndex = 0;
-	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++) //L for each cell in the training set
+	for (INTINTMAP_ITER eIter = trainEvidSet.begin(); eIter != trainEvidSet.end(); eIter++) 
 	{
 		EMAP* evidMap=NULL;
 		if(randomData)
@@ -64,74 +64,74 @@ PotentialManager::init(EvidenceManager* evMgr, bool randomData, vector<int>& var
 		}
 		else
 		{
-			evidMap=evMgr->getEvidenceAt(eIter->first); //L get this cell's gene expression map from this PotentialManager's evMgr
+			evidMap=evMgr->getEvidenceAt(eIter->first); 
 		}
-		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++) //L for each gene in this cell
+		for (EMAP_ITER vIter = evidMap->begin(); vIter != evidMap->end(); vIter++) 
 		{
 			int vId = vIter->first;
 			Evidence* evid = vIter->second;
 			double val = evid->getEvidVal();
-			deviations[vId * sampleCount + sampleIndex] = val; //L deviations[vId][sampleIndex] = val; store this gene expression value in the deviations matrix for now
+			deviations[vId * sampleCount + sampleIndex] = val; 
 		}
 		sampleIndex++;
 	}
 
 	// Done copying. Now we can go over data and get the means
-	for (int i = 0; i < varCount; i++) //L for each gene
+	for (int i = 0; i < varCount; i++)
 	{
 		double sampleSum = 0;
-		for(int j = 0; j < sampleCount; j++) //L for each cell in the training set
+		for(int j = 0; j < sampleCount; j++)
 		{
-			sampleSum += deviations[i * sampleCount + j]; //L sum up the gene expr value for this gene across all cells
+			sampleSum += deviations[i * sampleCount + j]; 
 		}
-		globalMeans.push_back(sampleSum / sampleCount); //L compute the mean for this gene and store in globalMeans. The gene order is exactly the order they appear in the input expression file
+		globalMeans.push_back(sampleSum / sampleCount); 
 	}
 
 	// Finally, use the means to pre-center the data
-	for (int i = 0; i < trainEvidSet.size(); i++) //L for each cell in the training set
+	for (int i = 0; i < trainEvidSet.size(); i++) 
 	{
-		for (int j = 0; j < varCount; j++) //L for each gene of the cell
+		for (int j = 0; j < varCount; j++) 
 		{
-			deviations[j * sampleCount + i] -= globalMeans[j]; //L subtract the mean for this gene from the gene expression value for this cell
+			deviations[j * sampleCount + i] -= globalMeans[j]; 
 		}
 	}
 
-	int norm = sampleCount - 1; //L use n-1 for sample covariance
+	int norm = sampleCount - 1; 
 
 	// Set covariances along the diagonal.
-	for (int i = 0; i < varCount; i++) //L for each gene
+	for (int i = 0; i < varCount; i++) 
 	{
-		double ssd = 0.001; //L ssd = sum of squared differences; start with a small value to avoid zero variance
-		for (int j = 0; j < sampleCount; j++) //L for each cell
+		double ssd = 0.001; 
+		for (int j = 0; j < sampleCount; j++)
 		{
-			double dev = deviations[i * sampleCount + j]; //L (x - mu) for this gene and cell
-			ssd += dev * dev; //L add (x - mu)^2 to ssd for this gene across all cells
+			double dev = deviations[i * sampleCount + j]; 
+			ssd += dev * dev; 
 		}
-		globalCovariances->setValue(ssd / norm, i, i); //L set globalCovariances[i][i] = sum((x - mu)^2) / (n-1), which is the sample variance for this gene across the training set
+		globalCovariances->setValue(ssd / norm, i, i);
 	}
 
 	// Set covariances between regulators and all other variables.
-	for (int i = 0; i < varIDs.size(); i++) //L for each restricted regulator we passed in
+	for (int i = 0; i < varIDs.size(); i++) 
 	{
-		int regID = varIDs[i]; //L get this reg's variable ID
-		for (int j = 0; j < varCount; j++) //L for each gene
+		int regID = varIDs[i]; 
+		for (int j = 0; j < varCount; j++) 
 		{
-			if (regID == j) //L skip diagonal,s we already did this above
+			if (regID == j) 
 			{
 				continue;
 			}
 
 			double ssd = 0;
-			for (int k = 0; k < sampleCount; k++) //L for each cell in the training set
+			for (int k = 0; k < sampleCount; k++) 
 			{
-				double devI = deviations[regID * sampleCount + k]; //L (x_reg - mu_reg)
-				double devJ = deviations[j * sampleCount + k]; //L (x_gene - mu_gene)
+				double devI = deviations[regID * sampleCount + k]; 
+				double devJ = deviations[j * sampleCount + k]; 
 				ssd += devI * devJ;
 			}
 
-			double covariance = ssd / norm; //L sum((x_reg - mu_reg)*(x_gene - mu_gene)) / (n-1), which is the sample covariance between this regulator and this gene across the training set
-			globalCovariances->setValue(covariance, regID, j); //L set globalCovariances[reg][gene] = this covariance value
-			globalCovariances->setValue(covariance, j, regID); //L set globalCovariances[gene][reg] = this covariance value
+			double covariance = ssd / norm; 
+			globalCovariances->setValue(covariance, regID, j); 
+			globalCovariances->setValue(covariance, j, regID); 
 		}
 	}
 
@@ -145,7 +145,7 @@ Potential*
 PotentialManager::createPotential(int factorID)
 {
 	int varCount = globalMeans.size();
-	double variance = globalCovariances->getValue(factorID, factorID); //L factorID (fID) of a SlimFactor SHOULD be the same as the variable ID...
+	double variance = globalCovariances->getValue(factorID, factorID); 
 	double bias = globalMeans[factorID];
 	INTDBLMAP weights;
 	return new Potential(factorID, variance, bias, weights);
@@ -153,7 +153,7 @@ PotentialManager::createPotential(int factorID)
 
 double
 PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize, Potential** newPot)
-{ //L conditional log-likelihood: log p(X_{v} ∣ U), where U = {X_{u1}, ..., X_{uk}}
+{ 
 	double variance = globalCovariances->getValue(factorID, factorID);
 	double bias = globalMeans[factorID];
 	INTDBLMAP weights;
@@ -163,19 +163,19 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Start by collecting a matrix of all the covariances of the conditioning variables,
 	// and the marginal variances of the conditioning variables.
 
-	Matrix *parentCovariances = new Matrix(parentCount, parentCount); //L Σ_{UU}
-	Matrix *parentMarginalVariances = new Matrix(1, parentCount); //L  Σ_{vU}
+	Matrix *parentCovariances = new Matrix(parentCount, parentCount); 
+	Matrix *parentMarginalVariances = new Matrix(1, parentCount); 
 
-	for (int i = 0; i < parentCount; i++) //L for each parent of this gene (factorID)
+	for (int i = 0; i < parentCount; i++) 
 	{
 		int varAID = parentIDs[i];
-		double factorCovariance = globalCovariances->getValue(factorID, varAID); //L covariance(v, Ui)
+		double factorCovariance = globalCovariances->getValue(factorID, varAID); 
 		parentMarginalVariances->setValue(factorCovariance, 0, i);
 
 		for (int j = i; j < parentCount; j++)
 		{
 			int varBID = parentIDs[j];
-			double covariance = globalCovariances->getValue(varAID, varBID); //L covariance(Ui, Uj)
+			double covariance = globalCovariances->getValue(varAID, varBID); 
 			parentCovariances->setValue(covariance, i, j); 
 			parentCovariances->setValue(covariance, j, i);
 		}
@@ -184,18 +184,18 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	// Compute the final values for the variance of the conditional gaussian,
 	// plus the regression parameters for the mean of the conditional guassian.
 
-	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm); //L Σ_{UU}^{-1}. A^{-1} such that AA^{-1} = A^{-1}A = I
-	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse); //L 1xparentCount matrix: β^T =  Σ_{vU}Σ_{UU}^{-1}, linear-Gaussian weights. Regression coefficient vector for predicting the target variable from its parents.
+	Matrix* parentCovInverse = parentCovariances->invMatrix(ludecomp, perm); 
+	Matrix* prod = parentMarginalVariances->multiplyMatrix(parentCovInverse); 
 
 	for (int i = 0; i < parentCount; i++)
 	{
 		int vID = parentIDs[i];
-		double aVal = prod->getValue(0, i); //L β_{Ui}^T
-		double bVal = parentMarginalVariances->getValue(0, i); //L covariance(v, Ui)
+		double aVal = prod->getValue(0, i);
+		double bVal = parentMarginalVariances->getValue(0, i); 
 		double cVal = globalMeans[vID];
 		weights[vID] = aVal; 
-		variance -= aVal * bVal; //L β_{Ui}^T * covariance(v, Ui)
-		bias -= cVal * aVal; //L mu_Ui * β_{Ui}^T
+		variance -= aVal * bVal; 
+		bias -= cVal * aVal; 
 	}
 
 	delete prod;
@@ -216,8 +216,8 @@ PotentialManager::computeLL(int factorID, vector<int>& parentIDs, int sampleSize
 	}
 
 	// Now that the conditional Gaussian params are computed, we can create the potential.
-	*newPot = new Potential(factorID, variance, bias, weights); //L create new potential with new values
+	*newPot = new Potential(factorID, variance, bias, weights); 
 
 	// Finally, compute the conditional log likelihood.
-	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance)); //L The optimization (using variance instead of determinants) is standard linear algebra (Schur complement)
+	return -0.5 * ((sampleSize - 1) + sampleSize * log(2 * PI) + sampleSize * log(variance));
 }

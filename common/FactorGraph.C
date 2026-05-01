@@ -11,10 +11,10 @@ FactorGraph::FactorGraph(VariableManager* vMgr)
 {
 	map<int,Variable*>& variableSet=vMgr->getVariableSet();
 	int vCnt=variableSet.size();
-	//L cout << " Number of factors " << vCnt << endl; //L uninformative
+	// cout << " Number of factors " << vCnt << endl; 
 
 	int factorIndex=0;
-	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++) //L for each gene, create a factor that has only this gene
+	for(map<int,Variable*>::iterator vIter=variableSet.begin();vIter!=variableSet.end();vIter++) 
 	{
 		SlimFactor* sFactor=new SlimFactor;
 		sFactor->vIds=new int[1];

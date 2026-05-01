@@ -25,18 +25,18 @@ VariableManager::readVariables(const char* aFName)
 
 	if(inFile.good()) 
 	{
-		inFile.getline(buffer,400000); //L read the first line, the header, containing the gene names
+		inFile.getline(buffer,400000);
 
 		if(strlen(buffer)<=0)
 		{
-			cout <<"Error: gene expression header is empty" << endl; //L change to be more informative
+			cout <<"Error: gene expression header is empty" << endl;
 			return Error::VARSCHEMA_ERR;
 		}
 
-		char* tok=strtok(buffer,"\t");  //L split the header into tokens by tabs
-		int tokCnt=0;  //L will become variable id, so gene1 has ID 0, gene2 has ID
+		char* tok=strtok(buffer,"\t"); 
+		int tokCnt=0;  
 
-		while(tok!=NULL) //L loop through all gene names
+		while(tok!=NULL) 
 		{
 			Variable* var=new Variable;
 			var->setID(tokCnt);
@@ -44,7 +44,7 @@ VariableManager::readVariables(const char* aFName)
 			variableSet[tokCnt]=var;
 			
 			string varKey(tok);
-			varNameIDMap[varKey]=tokCnt;  //L create a name --> ID lookup
+			varNameIDMap[varKey]=tokCnt; 
 			tokCnt++;
 			tok=strtok(NULL,"\t");
 		}
@@ -52,7 +52,7 @@ VariableManager::readVariables(const char* aFName)
 
 	inFile.close();
 
-	cout <<"Number of genes read: " << variableSet.size() << endl; //L say genes instead of variables
+	cout <<"Number of genes read: " << variableSet.size() << endl; 
 
 	return Error::SUCCESS;
 }

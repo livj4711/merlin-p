@@ -24,7 +24,6 @@ class MetaLearner
 	MetaLearner();
 	~MetaLearner();
 	int setMaxFactorSize_Approx(int);
-	//L int setPenalty(double);
 	int setBeta1(double aval);
 	int setBeta_Motif(double bval);
 	int setLambda(double bval);
@@ -77,13 +76,11 @@ class MetaLearner
 	VariableManager* varManager;
 
 	int maxFactorSizeApprox;
-	//L double penalty;
 	double convThreshold;
 	char restrictedFName[1024];
 	map<string,int> edgeMap;
 	map<string,int> restrictedVarList;
 	INTDBLMAP* currPLL;
-	//L char trueGraphFName[1024];
 	map<int,double> finalScores;
 	bool preRandomizeSplit;
 	gsl_rng* rnd;

@@ -30,7 +30,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 		getline(inFile,buffstr);
 	}
 
-	while(inFile.good()) //L for each line (cell) in the data file
+	while(inFile.good())
 	{
 		getline(inFile,buffstr);
 
@@ -51,11 +51,11 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 
 		//All the evidences for each variable are stored in a map, indexed by the varId
 		EMAP* evidMap=new EMAP;
-		char* tok=strtok(buffer,"\t"); //L all the gene expression values for this cell, as strings
+		char* tok=strtok(buffer,"\t"); 
 		//The toks take the form of varid and value
 
 		int vId = 0;
-		while(tok!=NULL) //L for each gene expression value in the line (cell)
+		while(tok!=NULL) 
 		{
 			Evidence* evid = new Evidence;
 			evid->assocVariable(vId);
@@ -64,7 +64,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 			if(isinf(varVal) || isnan(varVal))
 			{
 				//cout <<"Found nan! " << tok << endl;
-				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl; //L say NaN instead of zero
+				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl; 
 				exit(-1);	
 			}
 			evid->setEvidVal(varVal);
@@ -72,13 +72,13 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 			tok=strtok(NULL,"\t");
 			vId++;
 		}
-		evidenceSet.push_back(evidMap); //L add the evidence map for this cell to the evidenceSet vector, which holds the evidence maps for all the cells
+		evidenceSet.push_back(evidMap); 
 		lineNo++;
 	}
 
 	inFile.close();
 
-	cout <<"Number of samples read: " << evidenceSet.size() << endl; //L say samples instead of datapoints
+	cout <<"Number of samples read: " << evidenceSet.size() << endl; 
 
 	return Error::SUCCESS;
 }
@@ -162,16 +162,16 @@ EvidenceManager::setPreRandomizeSplit()
 }
 
 int 
-EvidenceManager::splitData(int s) //L split data for k-fold cross-validation
+EvidenceManager::splitData(int s) 
 {
 	int testSetSize=evidenceSet.size()/foldCnt;
 	int testStartIndex=s*testSetSize;
 	int testEndIndex=(s+1)*testSetSize;
-	if(s==foldCnt-1) //L if this is the last fold
+	if(s==foldCnt-1) 
 	{
 		testEndIndex=evidenceSet.size();
 	}
-	if(foldCnt==1) //L if we aren't doing cross-fold validation on the data
+	if(foldCnt==1) 
 	{
 		testStartIndex=-1;
 		testEndIndex=-1;
@@ -180,14 +180,14 @@ EvidenceManager::splitData(int s) //L split data for k-fold cross-validation
 	testIndex.clear();
 	int m=0;
 	int* randInds=NULL;
-	if(preRandomizeSplit) //L preRandomizeSplit is always false
-	{ //L generates random permutation of the dataset indices so that later data partitioning happens in random order instead of sequential order.
+	if(preRandomizeSplit) 
+	{ 
 		randInds=new int[evidenceSet.size()];
 		//generate a random vector of indices ranging from 0 to evidenceSet.size()-1
 		gsl_rng* r=gsl_rng_alloc(gsl_rng_default);
 		randseed=getpid();
 		gsl_rng_set(r,randseed);
-		populateRandIntegers(r,randInds,evidenceSet.size()); //L fills the array with a random permutation of integers
+		populateRandIntegers(r,randInds,evidenceSet.size()); 
 		gsl_rng_free(r);
 		cout <<"Random seed " << randseed << endl;
 	}
@@ -202,11 +202,11 @@ EvidenceManager::splitData(int s) //L split data for k-fold cross-validation
 		{
 			testIndex[eInd]=0;
 		}
-		else //L if it's not a 'test' cell, add the index to the trainIndex
+		else 
 		{
 			trainIndex[eInd]=0;
 		}
-		m++; //L m increments with the cell
+		m++; 
 	}
 	if(preRandomizeSplit)
 	{

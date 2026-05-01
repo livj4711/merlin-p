@@ -42,27 +42,27 @@ HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshol
 	{
 		int nextNodeIndex = currNodeSet.size();
 		currNodeSet[nextNodeIndex]=nIter->second;
-		nIter->second->id=nextNodeIndex; //L write this same ID back into original nodeSet
+		nIter->second->id=nextNodeIndex;
 	}
 
 	//The total number of nodes that can be there in a hierarchical cluster is 2n-1
 	int treenodecnt = (nodeSet.size()*2) - 1;
 
 	// Instantiate default distances
-	distvalues = new double*[treenodecnt]; //L distvalues is a symmetric matrix that holds pariwsie distances between all nodes
+	distvalues = new double*[treenodecnt];
 	for (int i = 0; i < treenodecnt; i++)
 	{
 		distvalues[i] = new double[treenodecnt];
 		for (int j = 0; j < treenodecnt; j++)
 		{
-			distvalues[i][j] = -1000; //L initialize all distances to -1000
+			distvalues[i][j] = -1000;
 		}
 	}
 
 	// Populate distances between the leaf nodes.
-	vector<Pair*> pairs = estimatePairwiseDist(currNodeSet, correlationDistances, threshold); //L return list of pairs of nodes with distance (correlationdist + parentdists) < threshold (default 0.5)
+	vector<Pair*> pairs = estimatePairwiseDist(currNodeSet, correlationDistances, threshold);
 
-	priority_queue<Pair*, vector<Pair*>, ComparePair> pairQueue(pairs.begin(), pairs.end()); //L build a priority queue (heap) from all initial candidate node pairs 
+	priority_queue<Pair*, vector<Pair*>, ComparePair> pairQueue(pairs.begin(), pairs.end());
 
 	vector<HierarchicalClusterNode*> internalNodes;
 
@@ -76,9 +76,9 @@ HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshol
 			break;
 		}
 
-		HierarchicalClusterNode *newNode = createMergeNode(nextPair, currNodeSet, nextNodeID); //L merge nodes and remove child nodes from currNodeSet
+		HierarchicalClusterNode *newNode = createMergeNode(nextPair, currNodeSet, nextNodeID);
 		internalNodes.push_back(newNode);
-		addMergeNode(newNode, currNodeSet, pairs, pairQueue, threshold); //L add new merged node to currNodeSet and calc distances from this node to all others, adding new pairs if dist < threshold 
+		addMergeNode(newNode, currNodeSet, pairs, pairQueue, threshold);
 
 		nextNodeID += 1;
 	}
@@ -112,8 +112,8 @@ HierarchicalCluster::cluster(map<int,map<string,int>*>& modules, double threshol
 
 vector<HierarchicalCluster::Pair*>
 HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& currNodeSet, Matrix* correlationDistances, double threshold)
-{ //L at this point, all nodes are just singleton genes
-	vector<double> denoms(currNodeSet.size(), 0); //L vector, one value per node, Σ(all parents of this gene (node)'s regression coeff)
+{
+	vector<double> denoms(currNodeSet.size(), 0);
 
 	for (int i = 0; i < currNodeSet.size(); i++)
 	{
@@ -143,7 +143,7 @@ HierarchicalCluster::estimatePairwiseDist(map<int,HierarchicalClusterNode*>& cur
 			double sharedSign = 0;
 			for(map<int,double>::iterator aIter = hcNode1->attrib.begin(); aIter != hcNode1->attrib.end(); aIter++)
 			{
-				map<int, double>::iterator bIter = hcNode2->attrib.find(aIter->first); //L list of which parents of node1 are also parents of node2
+				map<int, double>::iterator bIter = hcNode2->attrib.find(aIter->first);
 				if(bIter == hcNode2->attrib.end())
 				{
 					continue;
@@ -268,10 +268,10 @@ HierarchicalCluster::generateModules(map<int,HierarchicalClusterNode*>& currNode
 		map<string,int>* moduleMembers=new map<string,int>;
 		modules[moduleCnt]=moduleMembers;
 		populateMembers(moduleMembers,node);
-		//L cout <<"Module " << moduleCnt << " size: "<< moduleMembers->size() << endl; //L too verbose
+		// cout <<"Module " << moduleCnt << " size: "<< moduleMembers->size() << endl;
 		moduleCnt=moduleCnt+1;
 	}
-	cout <<"   Number of non-singleton modules: " << moduleCnt << endl; //L add print statement to clarify
+	cout <<"   Number of non-singleton modules: " << moduleCnt << endl;
 	return 0;
 }
 

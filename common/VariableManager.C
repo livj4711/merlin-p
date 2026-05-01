@@ -22,7 +22,6 @@ VariableManager::readVariables(const char* aFName)
 {
 	ifstream inFile(aFName);
 	char buffer[400000];
-	//L int nodeCnt=0; //unused
 
 	if(inFile.good()) 
 	{

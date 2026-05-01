@@ -27,7 +27,6 @@ Framework::~Framework() = default;
 Error::ErrorCode
 Framework::init(int argc, char** argv)
 {
-	// bool wDefault = true;
 	bool dDefault = true;
 	bool oDefault = true;
 	bool kDefault = true;
@@ -38,29 +37,12 @@ Framework::init(int argc, char** argv)
 	bool moduleDefault = true;
 	bool hDefault = true;
 
-	int optret='-';
+	int optret;
 	opterr=1;
-	int oldoptind=optind;
  
-	while(optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:")!=-1)
+	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:"))!=-1)
 	{
-		if(optret=='?')
-		{
-			cout <<"Option error " << optopt << endl;
-			return Error::UNKNOWN;
-		}
-		char c;
-		char* my_optarg=NULL;
-		c=*(argv[oldoptind]+1);
-		if(optind-oldoptind ==2)
-		{
-			my_optarg=argv[oldoptind+1];	
-		}
-		else
-		{
-			my_optarg=argv[oldoptind]+2;
-		}
-		switch(c)
+		switch(optret)
 		{
 			case 'd':
 			{
@@ -128,7 +110,7 @@ Framework::init(int argc, char** argv)
 			}
 			case 'q':
 			{
-				metaLearner.setPriorGraph_All(my_optarg);
+				metaLearner.setPriorGraph_All(optarg);
 				break;
 			}
 			case 'c':
@@ -155,11 +137,10 @@ Framework::init(int argc, char** argv)
 			}
 			default:
 			{
-				cerr << "Unhandled option " << c << endl;
+				cerr << "Unhandled option " << optret << endl;
 				return Error::UNKNOWN;
 			}
 		}
-		oldoptind=optind;
 	}
 
 
@@ -224,7 +205,7 @@ main(int argc, char* argv[])
 	if(argc<2)
 	{
 		cout <<"MERLIN-P GRN Inference " <<  endl
-			<<"-d gene_expression_file " << endl
+			<< "-d gene_expression_file " << endl
 			<< "-k maxfactorsize (default size_of_dataset)" << endl
 			<< "-v cross_validation_cnt (default 1)" << endl
 			<< "-l restricted_regulator_fname" << endl

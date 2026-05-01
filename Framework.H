@@ -19,9 +19,6 @@ class Framework
 		VariableManager varManager;
 		EvidenceManager evManager;
 		EvidenceManager holdoutEvManager;
-		//L double epsThreshold; // no longer used in current pipeline
-		//L char actionStr[256]; //no longer used in current pipeline
 		int cvCnt;
-		//L map<int,int> idVidMap; //no longer used in current pipeline
 };
 #endif

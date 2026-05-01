@@ -54,7 +54,6 @@ class MetaLearner
 	double getInitPLLScore();
 	double getInitPLLScore(int vId);
 	double getPLLScore();
-	//L double getInitPrior(); //L unused?
 	double getEdgePrior(int tfID, int targetID);
 	int clearFoldSpecData();
 	int initEdgeSet();

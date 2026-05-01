@@ -64,7 +64,7 @@ EvidenceManager::loadEvidenceFromFile(const char* inFName)
 			if(isinf(varVal) || isnan(varVal))
 			{
 				//cout <<"Found nan! " << tok << endl;
-				cerr << "Please remove NaNs from the expression data or check the data format, this is not a valid number (" << tok << ") " << endl; //L say NaN instead of zero
+				cerr << "Please remove NaNs from the expression data or check the data format. Not a valid number: " << tok << endl; //L say NaN instead of zero
 				exit(-1);	
 			}
 			evid->setEvidVal(varVal);

@@ -27,10 +27,8 @@
 MetaLearner::MetaLearner()
 {
 	restrictedFName[0]='\0';
-	//L trueGraphFName[0]='\0'; 
 	preRandomizeSplit=false;
 	random=false;
-	//L lambda=0; //L modulating this allows larger parent sets to get penalized, but this is never set
 	clusterThreshold=0.5;
 	specificFold=-1;
 	convThreshold=1e-3;
@@ -49,13 +47,6 @@ MetaLearner::setMaxFactorSize_Approx(int aVal)
 	maxFactorSizeApprox=aVal;
 	return 0;
 }
-
-// int 
-// MetaLearner::setPenalty(double aVal)
-// {
-// 	penalty=aVal;
-// 	return 0;
-// }
 
 int
 MetaLearner::setBeta1(double aval)
@@ -131,13 +122,6 @@ MetaLearner::setBeta_Motif(double aval)
 	beta_motif=aval;
 	return 0;
 }
-
-// int
-// MetaLearner::setLambda(double l) //L never used
-// {
-// 	lambda=l;
-// 	return 0;
-// }
 
 int 
 MetaLearner::setConvergenceThreshold(double aVal)
@@ -375,8 +359,6 @@ MetaLearner::setDefaultModuleMembership()
 	return 0;
 }
 
-//J completely remove initPartitions()
-
 int
 MetaLearner::initEdgePriorMeta(const string& priorName, map<string,map<string,double>*>& graph, map<int,INTDBLMAP*>& edgePriors)
 {
@@ -454,7 +436,6 @@ MetaLearner::doCrossValidation(int foldCnt)
 	}
 	for(int f=foldBegin;f<foldEnd;f++) //L loop over cross-validation folds
 	{
-		//J remove loop through evMgrSet (set of all conditions)	
 		evidenceManager->splitData(f);
 		if(random)
 		{	
@@ -496,7 +477,6 @@ MetaLearner::start(int f)
 {
 	currFold=f;
 	sprintf(foldoutDirName,"%s/fold%d",outputDirName,f); //L set the output directory for this fold ("examples/out_dir/fold0")
-	//L int maxMBSizeApprox=maxFactorSizeApprox-1; //L remove to make this more intuitive
 	int maxNumRegs = maxFactorSizeApprox-1; // max num of regulators a gene can have
 	rnd=gsl_rng_alloc(gsl_rng_default);
 	int rseed=getpid();
@@ -505,11 +485,6 @@ MetaLearner::start(int f)
 	initEdgePriorMeta_All(); //L initialize "edgeprior" for each prior network, which is the "reverse" of priorgraph (key=genes, values=regulators/edgewt dict)
 	initEdgeSet(); //L Initialize an edge set of ALL possible directed edges from restricted regulators -> module genes. Also set each SlimFactor's (singleton gene’s) potential to be a new Potential 
 	initPhysicalDegree(); //L across all prior networks, initializes number of edges from each enriched regulator to any gene in any module (regulatorModuleOutdegree), and the number of edges from any enriched regulator to genes in each module (moduleIndegree). This will be cleared and rebuilt later based on the learned graph
-
-	// if(strlen(trueGraphFName)!=0) //L dead functinality to evaluate performance of a given network
-	// {
-	// 	return 0;
-	// }
 
 	VSET& varSet=varManager->getVariableSet();
 
@@ -520,66 +495,57 @@ MetaLearner::start(int f)
 	}
 
 	double currGlobalScore=getInitPLLScore(); //L get intial PLL score for the entire network with no edges: Σgenes (newPLL_s + priorScore), where priorScore penalizes the network for not having an edge in it that is present in the prior. also initalize currPLL = { gene_ID : PLL + prior }
-	//L double initScore=getInitPrior(); //L get the initial prior score for the entire network with no edges. this is the same as ∑_i varNeighborhoodPrior[i]
-	//L int showid=0;
-	//L int moduleiter=0;
-	//L bool notConvergedTop=true;
-	//L while(moduleiter<1 && notConvergedTop)
-	//L {
-		int iter=0;
-		bool notConverged=true;
-		while(notConverged && iter<50)
+
+	int iter=0;
+	bool notConverged=true;
+	while(notConverged && iter<50)
+	{
+		cout << "Beginning regulator identification of iter " << iter << endl; //L clarify print statement
+		int subiter=0;
+		double scorePremodule=currGlobalScore;
+		while(subiter<varSet.size())
 		{
-			//L int attemptedMoves=0; //L unused
-			cout << "Beginning regulator identification of iter " << iter << endl; //L clarify print statement
-			int subiter=0;
-			double scorePremodule=currGlobalScore;
-			while(subiter<varSet.size())
+			int vID=subiter;
+			Variable* v=varSet[vID];
+
+			// If 5 iterations have passed without finding a score improving parent, then skip.
+			int lastiter = variableStatus[v->getName()];
+			if((iter - lastiter) >= 5)
 			{
-				int vID=subiter;
-				Variable* v=varSet[vID];
-
-				// If 5 iterations have passed without finding a score improving parent, then skip.
-				int lastiter = variableStatus[v->getName()];
-				if((iter - lastiter) >= 5)
-				{
-					cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl; //L clarify print statement
-					subiter++;
-					continue;
-				}
-
-				MetaMove* nextMove = getNextMove(maxNumRegs, vID); //L return the best (u, v) with targetScore (condLL + currPrior), scoreImprovement (score - currPLL[v]), and its Potential
-				if (nextMove == nullptr) //L if there was no reg that could be added to this gene to imporve score, continue
-				{
-					subiter++;
-					continue;
-				}
-
-				makeMove(nextMove, iter); //L add this (u, v) edge: update regulatorModuleOutdegree, variableStatus, edgeMap, and the factor graph (add u to v's slimFactor markov blanket and update its potential to nextMove's potential)
-				delete nextMove;
-
-				currGlobalScore=getPLLScore(); //L sum up all gene's currPLL+priorscore to get the entire network's current score after this move
-
+				cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl; //L clarify print statement
 				subiter++;
-				//L showid++;
-				//L attemptedMoves++; //L unused
+				continue;
 			}
-			cout << "   Finished identifying regulators with score " << currGlobalScore << endl; //L clarify print statement
-			if((currGlobalScore-scorePremodule)<=convThreshold)
+
+			MetaMove* nextMove = getNextMove(maxNumRegs, vID); //L return the best (u, v) with targetScore (condLL + currPrior), scoreImprovement (score - currPLL[v]), and its Potential
+			if (nextMove == nullptr) //L if there was no reg that could be added to this gene to imporve score, continue
 			{
-				notConverged=false;
+				subiter++;
+				continue;
 			}
-			else
-			{
-				cout << "   Network not converged; score improvement of " << (currGlobalScore-scorePremodule) << ". Redefining modules." << endl; //L clarify print statement
-				redefineModules();
-			}
-			iter++;
-			scorePremodule=currGlobalScore;
-			dumpAllGraphs(maxNumRegs,f,iter); //L write the current network (factor graph) to a file
+
+			makeMove(nextMove, iter); //L add this (u, v) edge: update regulatorModuleOutdegree, variableStatus, edgeMap, and the factor graph (add u to v's slimFactor markov blanket and update its potential to nextMove's potential)
+			delete nextMove;
+
+			currGlobalScore=getPLLScore(); //L sum up all gene's currPLL+priorscore to get the entire network's current score after this move
+
+			subiter++;
 		}
-		//L moduleiter++;
-	//L}
+		cout << "   Finished identifying regulators with score " << currGlobalScore << endl; //L clarify print statement
+		if((currGlobalScore-scorePremodule)<=convThreshold)
+		{
+			notConverged=false;
+		}
+		else
+		{
+			cout << "   Network not converged; score improvement of " << (currGlobalScore-scorePremodule) << ". Redefining modules." << endl; //L clarify print statement
+			redefineModules();
+		}
+		iter++;
+		scorePremodule=currGlobalScore;
+		dumpAllGraphs(maxNumRegs,f,iter); //L write the current network (factor graph) to a file
+	}
+
 	cout <<"Final Score " << currGlobalScore << endl;
 	finalScores[f]=currGlobalScore;
 	return 0;
@@ -621,23 +587,6 @@ MetaLearner::getPLLScore()
 	}
 	return gScore;
 }
-
-// double 
-// MetaLearner::getInitPrior() //L unused?
-// {
-// 	double graphPrior=0;
-// 	double edgePresence=1/(1+exp(-1*beta1)); //L edge presence prob for an edge not present in any prior network
-// 	for(map<string,double>::iterator aIter=edgePresenceProb.begin();aIter!=edgePresenceProb.end();aIter++) //L for each possible directed reg-gene edge
-// 	{
-// 		//graphPrior=graphPrior+log(1-edgePresence);
-// 		graphPrior=graphPrior+log(1-aIter->second); //L edge presence prob for this edge, based on prior networks. this is the same as ∑_i varNeighborhoodPrior[i]
-// 		if(isinf(graphPrior)|| isnan(graphPrior))
-// 		{
-// 			cout <<"Graph prior is "<< graphPrior << " after " << aIter->first << " for " << aIter->second << endl;
-// 		}
-// 	}
-// 	return graphPrior;
-// }
 
 int
 MetaLearner::clearFoldSpecData()
@@ -713,7 +662,6 @@ MetaLearner::initEdgeSet()
 	//L cout <<"Restricted varlist size: " << restrictedVarList.size() << endl; //L we print the resticted regulators list size previously
 	int n=varSet.size();
 	int r=restrictedVarList.size();
-	//L int expEdgeCnt=((r*(r-1))/2) + (r*(n-r)) ; //L this is the expected edge count for undirected edges
 	int expEdgeCnt=r*(n-1); //L this is the expected edge count for directed edges 
 	//L cout <<"Initialized " << edgeMap.size() << " edges. Expected " << expEdgeCnt << endl; //L not necessary to print
 
@@ -970,12 +918,6 @@ MetaLearner::getNewPLLScore(Variable* u, Variable* v, vector<int>& parentIDs, st
 
 	double currPrior = varNeighborhoodPrior[factorID] + plus - minus;
 	double condLL = potManager->computeLL(factorID, parentIDs, datasize, newdPot); //L condLL = log p(X_{v} ∣ U); create new potential X_{v} ∣ U for this gene with these parents: new conditional mean, variance, regression weights
-
-	//L double varCnt = (double)parentIDs.size() + 1; //L unused since lambda always 0
-	//L double paramCnt = 2 * varCnt + varCnt * (varCnt - 1) / 2; //L unused since lambda always 0
-	//L double complexityPrior = -lambda * paramCnt * log(datasize);
-
-	//L mbScore = condLL + complexityPrior + currPrior; //L I comment out to remove lambda influence, which is always 0
 	mbScore = condLL + currPrior;
 	scoreImprovement = mbScore - (*currPLL)[factorID];
 }
@@ -1006,8 +948,6 @@ MetaLearner::getInitPLLScore(int vId)
 
 	// The initial graph has no edges, meaning this variable is univariate
 	// gaussian, with just 2 params (mean, variance).
-	//L double complexityPrior = lambda * 2 * log(tSet->size()); //L lambda unchanged from 0
-	//L pll -= complexityPrior; //L lambda unchanged from 0
 	return pll;
 }
 

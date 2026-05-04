@@ -511,7 +511,7 @@ MetaLearner::start(int f)
 			int lastiter = variableStatus[v->getName()];
 			if((iter - lastiter) >= 5)
 			{
-				cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
+				// cout <<"   Skipping gene " << v->getName() << "; no parents added in last 5 iters." << endl;
 				subiter++;
 				continue;
 			}

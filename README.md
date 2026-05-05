@@ -31,6 +31,9 @@ For an example, see example/expr.tsv
 **Regulator list:** This file contains a list of potential regulators (transcription factors, signaling proteins, etc.). The file should contain one regulator per row. The program will infer a network between these regulators and all the genes in the expression file.
 For an example, see example/regulators.txt
 
+**Pseudotime assignment:** This is a tab delimited file containing the pseudotime rank for each cell/sample, one sample per row. The first column contains the cell/sample's name and the second column contains the pseudotime rank for that cell/sample. 
+For an example, see example/pseudotime.tsv
+
 **Output directory:** When running MERLIN in a cross validation scheme, this directory will contain one sub-directory per fold, otherwise, there would be only one sub-directory named fold0. Each sub-directory will contain two files:
 
 *inferred network:* The file prediction_k*.txt will contain the inferred network, one edge per line. The first column would be the regulator's name, the second column would be the target gene's name, and the third column would be the regression coefficient.
@@ -42,16 +45,18 @@ For an example, see example/regulators.txt
 Optional inputs
 ---------------
 
-**Initial module assignment:** The file contains the initial module assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the module assignment for that gene. For example, see example/initial_modules.tsv
+**Initial module assignment:** The file contains the initial module assignment for each gene, one gene per row. The first column contains the gene's name and the second column contains the module assignment for that gene. 
+For an example, see example/initial_modules.tsv
 
-**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). For an example, see example/prior_config.tsv and example/prior.tsv
+**Prior networks:** The config file should contains one row per prior network. The first column contains the network's name, the second column contains the path to the prior network, and the third column contains the confidence in that network (the higher the confidence, the more effect that prior will have). The prior file in the second column should have one edge per row, the first column contains the regulator's name, the second column contains the target gene's name, and the third column contains the confidence in that edge (the higher the confidence, the more we trust in that edge). 
+For an example, see example/prior_config.tsv and example/prior.tsv
 
 How to run
 ----------
 To run, change to MERLIN directory and run:
 
 ```
-./merlin -d example/expr.tsv -l example/regulators.txt -o out_dir/ -c example/initial_modules.tsv -q example/prior_config.tsv
+./merlin -d example/expr.tsv -l example/regulators.txt -t example/pseudotime.tsv -o example/out_dir/ -c example/initial_modules.tsv -q example/prior_config.tsv
 ```
 
 To get the full list of options, run: ./merlin

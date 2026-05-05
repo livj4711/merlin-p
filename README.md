@@ -23,7 +23,7 @@ What are the inputs of MERLIN?
 
 Required inputs
 ---------------
-The required inputs of MERLIN are a tab delimited expression file, a list of regulators and an output directory.
+The required inputs of MERLIN are a tab delimited expression file, a list of regulators, pseudotime assignment, and an output directory.
 
 **Expression file:** This is a tab delimited file containing the expression values of genes of interest in different cells/samples/conditions/time points. Each column correspond to one gene, first row contain the gene name and the rest of rows are the expression values.
 For an example, see example/expr.tsv

@@ -420,7 +420,7 @@ MetaLearner::doCrossValidation(int foldCnt)
 	rnd=gsl_rng_alloc(gsl_rng_default);
 
 	evidenceManager->setFoldCnt(foldCnt);
-	evidenceManager->splitData(0);
+	// evidenceManager->splitData(0); //L redundant
 
 	potManager = new PotentialManager;
 
@@ -462,7 +462,10 @@ MetaLearner::doCrossValidation(int foldCnt)
 		// Begin identifying regulators/inferring modules for this fold
 		start(f);
 
-		getPredictionError_CrossValid(f);
+		if (foldCnt > 1) //L only compute metrics if we are doing cross validation
+		{
+			getPredictionError_CrossValid(f); 
+		}
 		clearFoldSpecData();
 	}
 	gsl_rng_free(r);
@@ -672,119 +675,154 @@ MetaLearner::initEdgeSet()
 	return 0;
 }
 
+
+/**
+ * Computes and saves prediction quality metrics for a single cross-validation fold.
+ *
+ * For each gene/variable in geneModuleID, evaluates the trained model against the
+ * held-out test set and writes one output row per gene to: <outputDirName>/fold<foldid>/prediction_stats.txt
+ *
+ * Columns written:
+ *   Gene - gene/variable name
+ *   PLL - summed pseudo-log-likelihood over all test samples (density based)
+ *   RMSE - root mean squared error between predicted and true values (regression based)
+ *   NormRMSE - RMSE normalised by the true-value range [min, max] (regression based)
+ *   R2 - coefficient of determination (1 = perfect, 0 = mean baseline) (regression based)
+ *   CC - Pearson correlation coefficient between predicted and true values (regression based)
+ *
+ * Returns 0 on success, -1 if the output file cannot be opened.
+ */
 int
 MetaLearner::getPredictionError_CrossValid(int foldid)
 {
-	VSET& varSet=varManager->getVariableSet();
-	char foldoutDirName[1024];
-	sprintf(foldoutDirName,"%s/fold%d",outputDirName,foldid);
-	INTINTMAP& testSet=evidenceManager->getTestSet();
-	map<int,double> varPLL;
-	for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
-	{
-		//for each gc, get the expected value of this datapoint
-		EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
+    VSET& varSet = varManager->getVariableSet();
+    char foldoutDirName[1024];
+    sprintf(foldoutDirName, "%s/fold%d", outputDirName, foldid);
+    INTINTMAP& testSet = evidenceManager->getTestSet();
 
-		for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
-		{
-			int vId=varManager->getVarID(vIter->first.c_str());
-			if(vId==-1)
-			{
-				continue;
-			}
-			Variable* v=varSet[vId];
-			SlimFactor* sFactor=factorGraph->getFactorAt(vId);
-			Potential* sPot=sFactor->potFunc;
-			if(sPot==NULL)
-			{
-				cout <<"Found null for factor="<< sFactor->fId
-					<< " variable=" <<varSet[sFactor->fId]->getName() << endl;
-			}
-			double pval=sPot->evaluateProbabilityDensity(evidMap);
-			if(pval<1e-50)
-			{
-				pval=1e-50;
-			}
-			if(isinf(pval) || isnan(pval))
-			{
-				cout <<"Stop here. Found nan/inf for " << vIter->first << " dtpt "<< dIter->first << endl;
-			}
-			double cll=log(pval);
-			if(varPLL.find(vId)==varPLL.end())
-			{
-				varPLL[vId]=cll;
-			}
-			else
-			{
-				varPLL[vId]=varPLL[vId]+cll;
-			}
-		}
-	}
-	/*
-	for(map<int,double>::iterator pIter=varPLL.begin();pIter!=varPLL.end();pIter++)
-	{
-		oFile << varSet[pIter->first]->getName() << "\t" << pIter->second << endl;
-	}
-	pFile << "\tRMSE\tNormRMSE\tCoeff_Det_aka_R^2\tCC"<< endl;
-	*/
-	vector<double> truevect;
-	vector<double> predvect;
-	for(map<string,int>::iterator vIter=geneModuleID.begin();vIter!=geneModuleID.end();vIter++)
-	{
-		int vId=varManager->getVarID(vIter->first.c_str());
-		if(vId==-1)
-		{
-			continue;
-		}
-		//pFile <<vIter->first;
-		double norm=0;
-		double maxval=-100000;
-		double minval=1000000;
-		double totalvar=0;
-		double truemean=0;
-		truevect.clear();
-		predvect.clear();
+    // Open output files
+    char statsFileName[1100];
+    sprintf(statsFileName, "%s/prediction_stats.txt", foldoutDirName);
+    ofstream statsFile(statsFileName);
+    if(!statsFile.is_open())
+    {
+        cerr << "Error: cannot open output file " << statsFileName << endl;
+        return -1;
+    }
+    // Header row — one line per gene/variable
+    statsFile << "Gene\tPLL\tRMSE\tNormRMSE\tR2\tCC" << endl;
 
-		for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
-		{
-			EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
-			Evidence* evid=(*evidMap)[vId];
-			double trueval=evid->getEvidVal();
-			truemean=truemean+trueval;
-			truevect.push_back(trueval);
-		}
+    // Log-likelihood
+    map<int,double> varPLL;
+    for(INTINTMAP_ITER dIter = testSet.begin(); dIter != testSet.end(); dIter++)
+    {
+        EMAP* evidMap = evidenceManager->getEvidenceAt(dIter->first);
 
-		truemean=truemean/((double)testSet.size());
+        for(map<string,int>::iterator vIter = geneModuleID.begin(); vIter != geneModuleID.end(); vIter++)
+        {
+            int vId = varManager->getVarID(vIter->first.c_str());
+            if(vId == -1) continue;
 
-		//First the predicted time course
-		SlimFactor* sFactor=factorGraph->getFactorAt(vId);
-		Potential* sPot=sFactor->potFunc;
-		for(INTINTMAP_ITER dIter=testSet.begin();dIter!=testSet.end();dIter++)
+            SlimFactor* sFactor = factorGraph->getFactorAt(vId);
+            Potential* sPot = sFactor->potFunc;
+            if(sPot == NULL)
+            {
+                cout << "Found null for factor=" << sFactor->fId << " variable=" << varSet[sFactor->fId]->getName() << endl;
+            }
+
+            double pval = sPot->evaluateProbabilityDensity(evidMap);
+            if(pval < 1e-50) pval = 1e-50;
+            if(isinf(pval) || isnan(pval))
+                cout << "Stop here. Found nan/inf for " << vIter->first << " dtpt " << dIter->first << endl;
+
+            double cll = log(pval);
+            varPLL[vId] = (varPLL.find(vId) == varPLL.end()) ? cll : varPLL[vId] + cll;
+        }
+    }
+
+    // Prediction metrics
+    vector<double> truevect;
+    vector<double> predvect;
+
+    for(map<string,int>::iterator vIter = geneModuleID.begin(); vIter != geneModuleID.end(); vIter++)
+    {
+        int vId = varManager->getVarID(vIter->first.c_str());
+        if(vId == -1) continue;
+
+        double truemean = 0;
+        double maxval = -1e9;
+        double minval = 1e9;
+        double totalvar = 0;
+        truevect.clear();
+        predvect.clear();
+
+        // Collect true values and compute mean
+        for(INTINTMAP_ITER dIter = testSet.begin(); dIter != testSet.end(); dIter++)
+        {
+            EMAP* evidMap = evidenceManager->getEvidenceAt(dIter->first);
+            double trueval = (*evidMap)[vId]->getEvidVal();
+            truemean += trueval;
+            truevect.push_back(trueval);
+            if(trueval > maxval) maxval = trueval;
+            if(trueval < minval) minval = trueval;
+        }
+        truemean /= (double)testSet.size();
+
+        // Collect predicted values; accumulate totalvar (SS_tot) for R^2
+        SlimFactor* sFactor = factorGraph->getFactorAt(vId);
+        Potential* sPot = sFactor->potFunc;
+        for(INTINTMAP_ITER dIter = testSet.begin(); dIter != testSet.end(); dIter++)
+        {
+            EMAP* evidMap = evidenceManager->getEvidenceAt(dIter->first);
+            double trueval = (*evidMap)[vId]->getEvidVal();
+            double predval = sPot->getExpectation(evidMap);
+            predvect.push_back(predval);
+            totalvar += (trueval - truemean) * (trueval - truemean);
+        }
+
+        int n = (int)truevect.size();
+
+        // RMSE: root mean squared error between predicted and true
+        double ss_res = 0;
+        for(int i = 0; i < n; i++)
 		{
-			EMAP* evidMap=evidenceManager->getEvidenceAt(dIter->first);
-			double predval=sPot->getExpectation(evidMap);
-			Evidence* evid=(*evidMap)[vId];
-			double trueval=evid->getEvidVal();
-			totalvar=totalvar+((trueval-truemean)*(trueval-truemean));
-			//also called residuals
-			predvect.push_back(predval);
-			//norm=norm+(trueval*trueval);
-			norm=norm+1;
-			if(trueval>maxval)
-			{
-				maxval=trueval;
-			}
-			if(trueval<minval)
-			{
-				minval=trueval;
-			}
+            ss_res += (truevect[i] - predvect[i]) * (truevect[i] - predvect[i]);
 		}
-	}
-	//oFile.close();
-	//pFile.close();
-	varPLL.clear();
-	return 0;
+		double rmse = sqrt(ss_res / n);
+        double normRmse = (maxval > minval) ? rmse / (maxval - minval) : 0.0;
+
+        // R^2: coefficient of determination; 1.0 = perfect, 0.0 = mean-only baseline
+        double r2 = (totalvar > 0) ? 1.0 - (ss_res / totalvar) : 0.0;
+
+        // Pearson CC: correlation between predicted and true vectors
+        double predmean = 0;
+        for(int i = 0; i < n; i++) predmean += predvect[i];
+        predmean /= n;
+
+        double ss_xy = 0, ss_yy = 0;
+        for(int i = 0; i < n; i++)
+        {
+            ss_xy += (truevect[i] - truemean) * (predvect[i] - predmean);
+            ss_yy += (predvect[i] - predmean) * (predvect[i] - predmean);
+        }
+        double cc = (totalvar > 0 && ss_yy > 0) ? ss_xy / sqrt(totalvar * ss_yy) : 0.0;
+
+        // Write one row: GeneName   PLL   RMSE   NormRMSE   R^2   CC
+        statsFile << vIter->first << "\t"
+			<< varPLL[vId] << "\t"
+            << rmse << "\t"
+            << normRmse << "\t"
+            << r2 << "\t"
+            << cc << endl;
+    }
+
+    statsFile.close();
+    cout << "Fold " << foldid << " prediction stats written to " << statsFileName << endl;
+
+    varPLL.clear();
+    return 0;
 }
+
 
 MetaMove*
 MetaLearner::getNextMove(int maxNumRegs, int vID)

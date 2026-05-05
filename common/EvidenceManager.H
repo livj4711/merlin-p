@@ -2,6 +2,8 @@
 #define _EVIDENCE_MANAGER
 
 #include <map>
+#include <string> //L
+#include <vector> //L
 #include <fstream>
 #include <sys/types.h>
 #include <unistd.h>
@@ -27,10 +29,12 @@ class EvidenceManager
 
 		//Read the evidence file
 		Error::ErrorCode loadEvidenceFromFile(const char*);
+		Error::ErrorCode readPseudotime(const char*);
 
 		//Get the evidence set at the specified id
 		EMAP* getEvidenceAt(int);
 		EMAP* getRandomEvidenceAt(int);
+		const vector<string>& getCellNames() const; //L
 
 		int randomizeEvidence(gsl_rng*, VariableManager*);
 		int setFoldCnt(int);
@@ -41,11 +45,15 @@ class EvidenceManager
 		int populateRandIntegers(gsl_rng*, vector<int>&,int,int);
 
 	private:
+		int buildPseudotimeOrder();
 		int populateRandIntegers(gsl_rng*, int*,int);
 		int populateRandIntegers(gsl_rng* r, int* randInds, INTINTMAP& populateFrom, int size);
 
 		EVIDENCE_SET evidenceSet;
 		EVIDENCE_SET randEvidenceSet;
+		vector<string> cellNames; //L
+		map<string,double> cellPseudotime;
+		vector<int> pseudotimeOrder;
 		INTINTMAP trainIndex;
 		INTINTMAP testIndex;
 		int foldCnt;

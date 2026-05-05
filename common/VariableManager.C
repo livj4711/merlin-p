@@ -34,6 +34,7 @@ VariableManager::readVariables(const char* aFName)
 		}
 
 		char* tok=strtok(buffer,"\t");
+		tok=strtok(NULL,"\t");  //L Skip the index label (e.g., "gene")
 		int tokCnt=0;
 
 		while(tok!=NULL)

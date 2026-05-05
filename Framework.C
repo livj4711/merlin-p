@@ -37,10 +37,12 @@ Framework::init(int argc, char** argv)
 	bool moduleDefault = true;
 	bool hDefault = true;
 
+	bool ptDefault = true; //L
+
 	int optret;
 	opterr=1;
 
-	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:"))!=-1)
+	while((optret=getopt(argc,argv,"o:k:d:v:l:p:r:c:h:f:q:t:"))!=-1) //L add t:
 	{
 		switch(optret)
 		{
@@ -65,13 +67,23 @@ Framework::init(int argc, char** argv)
 
 				break;
 			}
+			case 't': // pseudotime file //L
+			{
+				ptDefault=false;
+				Error::ErrorCode eCode = evManager.readPseudotime(optarg);
+				if(eCode != Error::SUCCESS)
+				{
+					cerr << Error::getErrorString(eCode) << endl;
+					return eCode;
+				}
+				break;
+			}
 			case 'o': // output file - predictions
 			{
 				oDefault=false;
 				metaLearner.setOutputDirName(optarg);
 				break;
 			}
-
 			case 'k':
 			{
 				int aSize = atoi(optarg);
@@ -160,6 +172,11 @@ Framework::init(int argc, char** argv)
 		cerr << "Please specify the name of output directory. (option -o)\n";
 		return Error::UNKNOWN;
 	}
+	if(ptDefault)
+	{
+		cerr << "Please specify the name of pseudotime file. (option -t)\n";
+		return Error::UNKNOWN;
+	}
 
 	// Apply defaults for unset options
 	if(moduleDefault)
@@ -209,6 +226,7 @@ main(int argc, char* argv[])
 			<< "-k maxfactorsize (default size_of_dataset)" << endl
 			<< "-v cross_validation_cnt (default 1)" << endl
 			<< "-l restricted_regulator_fname" << endl
+			<< "-t pseudotime_file" << endl //L
 			<< "-p sparsity_prior (default -5)" << endl
 			<< "-r module_prior (default 4)" << endl
 			<< "-q prior_config" << endl
